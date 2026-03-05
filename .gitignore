@@ -1,0 +1,4 @@
+lib/
+mazerunner
+web/index.data
+src/*.o

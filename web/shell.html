@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MazeRunner</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #111;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: monospace;
+      color: #aaa;
+    }
+    #canvas { display: block; border: 1px solid #333; }
+    #status { margin-top: 8px; font-size: 12px; opacity: 0.5; }
+  </style>
+</head>
+<body>
+  <canvas id="canvas" width="1280" height="720" oncontextmenu="event.preventDefault()"></canvas>
+  <div id="status">Loading...</div>
+
+  <script>
+    var Module = {
+      canvas: document.getElementById('canvas'),
+      print: function(text) {},
+      printErr: function(text) { console.warn('[MazeRunner]', text); },
+      onRuntimeInitialized: function() {
+        document.getElementById('status').textContent = '';
+      }
+    };
+  </script>
+
+  {{{ SCRIPT }}}
+</body>
+</html>
