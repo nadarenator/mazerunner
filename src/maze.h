@@ -16,7 +16,8 @@
 
 typedef struct {
     int16_t pat_idx;   // WFC pattern index
-    uint8_t is_wall;   // 1=wall, 0=floor (cached center pixel)
+    uint8_t is_wall;   // 1=wall, 0=walkable (floor or orb)
+    uint8_t has_orb;   // 1=uncollected orb on this tile, 0=none
 } TileCell;
 
 typedef struct {
@@ -38,6 +39,10 @@ void Maze_Render(const MazeBuffer *mb, float camera_x, float camera_y);
 
 // 1 if the world tile is a wall (or out of buffer bounds).
 int  Maze_IsWall(const MazeBuffer *mb, int tile_x, int tile_y);
+
+// If the tile at (tile_x, tile_y) has an uncollected orb, clear it and return 1.
+// Returns 0 if no orb present or tile is out of buffer bounds.
+int  Maze_TryCollectOrb(MazeBuffer *mb, int tile_x, int tile_y);
 
 // Write the world-pixel center of the spawn tile (guaranteed floor).
 void Maze_GetStartPos(const MazeBuffer *mb, float *out_x, float *out_y);

@@ -38,11 +38,16 @@ int WFC_GenerateColumn(const WFCData *wfc, int height,
 int WFC_GenerateRow(const WFCData *wfc, int width,
                     const int *top_pats, int *out_pats);
 
-// Return the center pixel (0=floor, 1=wall) of a pattern.
+// Return the center pixel (0=floor, 1=wall, 2=orb) of a pattern.
 int WFC_CenterPixel(const WFCData *wfc, int pat_idx);
 
-// Return 1 if at least one floor pattern exists.
+// Return 1 if the center of this pattern is an orb spawn (value 2).
+int WFC_CenterIsOrb(const WFCData *wfc, int pat_idx);
+
+// Return 1 if at least one walkable (non-wall) pattern exists.
+// Both floor (0) and orb (2) centres count as walkable.
 int WFC_HasFloorPattern(const WFCData *wfc);
 
-// Return index of the first floor-center pattern, or 0 as last resort.
+// Return index of the first floor-centre (0) pattern; falls back to orb (2),
+// then pattern 0 as absolute last resort.
 int WFC_AnyFloorPattern(const WFCData *wfc);

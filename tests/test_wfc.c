@@ -173,6 +173,65 @@ static void test_determinism(void) {
     printf("PASS\n\n");
 }
 
+// --- Test 6: Orb pattern extraction and generation ---
+static void test_orb_patterns(void) {
+    printf("=== Test 6: Orb Pattern Extraction & Generation ===\n");
+
+    // Build an 8x8 sample with isolated orb pixels (value=2) and walls.
+    // Orbs at (1,1), (3,5), (6,2) — none are cardinal-adjacent to each other.
+    uint8_t s[8][8] = {
+        {1,1,1,1,1,1,1,1},
+        {1,2,0,0,0,0,0,1},  // orb at (1,1)
+        {1,0,0,0,0,0,2,1},  // orb at (6,2)
+        {1,0,0,0,0,0,0,1},
+        {1,0,0,0,0,0,0,1},
+        {1,0,0,2,0,0,0,1},  // orb at (3,5)
+        {1,0,0,0,0,0,0,1},
+        {1,1,1,1,1,1,1,1},
+    };
+
+    WFCData wfc;
+    WFC_Init(&wfc, &s[0][0], 8, 8);
+    printf("Pattern count: %d\n", wfc.pattern_count);
+
+    // At least one pattern must have center == 2
+    int orb_pats = 0;
+    for (int p = 0; p < wfc.pattern_count; p++)
+        if (WFC_CenterIsOrb(&wfc, p)) orb_pats++;
+    printf("Patterns with orb centre: %d\n", orb_pats);
+    if (orb_pats == 0) { printf("FAIL: no orb-centre patterns found\n"); exit(1); }
+
+    // WFC_HasFloorPattern must return 1 (orbs count as walkable)
+    if (!WFC_HasFloorPattern(&wfc)) { printf("FAIL: WFC_HasFloorPattern returned 0\n"); exit(1); }
+
+    // Generate a 20x20 grid row-by-row and count orb-centre cells
+    int GW = 20, GH = 20;
+    int pats[20][20];
+    int orb_cells = 0;
+    for (int r = 0; r < GH; r++) {
+        int top_pats[20];
+        for (int c = 0; c < GW; c++)
+            top_pats[c] = (r > 0) ? pats[r-1][c] : -1;
+        int row_out[20];
+        WFC_GenerateRow(&wfc, GW, top_pats, row_out);
+        for (int c = 0; c < GW; c++) {
+            pats[r][c] = row_out[c];
+            if (WFC_CenterIsOrb(&wfc, row_out[c])) orb_cells++;
+        }
+    }
+    printf("Orb-centre cells in 20x20 output: %d / %d\n", orb_cells, GW * GH);
+    if (orb_cells == 0) { printf("FAIL: no orbs appeared in generated grid\n"); exit(1); }
+
+    // Verify WFC_AnyFloorPattern returns a true floor (0) pattern, not an orb
+    int fp = WFC_AnyFloorPattern(&wfc);
+    if (WFC_CenterPixel(&wfc, fp) == 1) {
+        printf("FAIL: WFC_AnyFloorPattern returned a wall pattern\n"); exit(1);
+    }
+    printf("WFC_AnyFloorPattern centre: %d (0=floor preferred)\n", WFC_CenterPixel(&wfc, fp));
+
+    printf("PASS\n\n");
+}
+
 int main(void) {
     srand((unsigned)time(NULL));
     test_extraction();
@@ -180,6 +239,7 @@ int main(void) {
     test_row_generation();
     test_all_wall();
     test_determinism();
+    test_orb_patterns();
     printf("All WFC tests PASSED.\n");
     return 0;
 }

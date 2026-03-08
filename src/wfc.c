@@ -161,14 +161,23 @@ int WFC_CenterPixel(const WFCData *wfc, int pat_idx) {
     return wfc->patterns[pat_idx].data[WFC_N / 2][WFC_N / 2];
 }
 
+int WFC_CenterIsOrb(const WFCData *wfc, int pat_idx) {
+    return wfc->patterns[pat_idx].data[WFC_N / 2][WFC_N / 2] == 2;
+}
+
+// Treat both floor (0) and orb (2) as walkable — only wall (1) blocks movement.
 int WFC_HasFloorPattern(const WFCData *wfc) {
     for (int p = 0; p < wfc->pattern_count; p++)
-        if (wfc->patterns[p].data[WFC_N / 2][WFC_N / 2] == 0) return 1;
+        if (wfc->patterns[p].data[WFC_N / 2][WFC_N / 2] != 1) return 1;
     return 0;
 }
 
 int WFC_AnyFloorPattern(const WFCData *wfc) {
+    // Prefer true floor (0) first
     for (int p = 0; p < wfc->pattern_count; p++)
         if (wfc->patterns[p].data[WFC_N / 2][WFC_N / 2] == 0) return p;
+    // Fall back to orb (also walkable)
+    for (int p = 0; p < wfc->pattern_count; p++)
+        if (wfc->patterns[p].data[WFC_N / 2][WFC_N / 2] == 2) return p;
     return 0;
 }

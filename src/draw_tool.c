@@ -18,8 +18,14 @@
 #define BTN_START_W  200
 #define BTN_START_H  50
 
+// Paint-mode swatch buttons (below instructions, above Clear)
+#define SWATCH_Y     270
+#define SWATCH_SIZE  28
+#define SWATCH_GAP   8
+
 void DrawTool_Init(DrawTool *dt) {
     memset(dt->pixels, 0, sizeof(dt->pixels));
+    dt->paint_mode = DT_PAINT_WALL;
     DrawTool_FillDefault(dt);
 }
 
@@ -54,15 +60,53 @@ void DrawTool_FillDefault(DrawTool *dt) {
 
 void DrawTool_Clear(DrawTool *dt) {
     memset(dt->pixels, 0, sizeof(dt->pixels));
+    // paint_mode is intentionally preserved across clear
+}
+
+// Returns 1 if placing an orb at (cx,cy) would violate the isolation rule
+// (any of the 4 cardinal neighbours is already an orb).
+static int orb_has_adjacent(const DrawTool *dt, int cx, int cy) {
+    int dirs[4][2] = {{0,-1},{0,1},{-1,0},{1,0}};
+    for (int d = 0; d < 4; d++) {
+        int nx = cx + dirs[d][0];
+        int ny = cy + dirs[d][1];
+        if (nx >= 0 && nx < CANVAS_SIZE && ny >= 0 && ny < CANVAS_SIZE)
+            if (dt->pixels[ny][nx] == CANVAS_VAL_ORB) return 1;
+    }
+    return 0;
 }
 
 void DrawTool_Update(DrawTool *dt) {
+    // G key toggles paint mode
+    if (IsKeyPressed(KEY_G))
+        dt->paint_mode = (dt->paint_mode == DT_PAINT_WALL) ? DT_PAINT_ORB : DT_PAINT_WALL;
+
+    // Swatch button clicks (left-click on the mode swatches)
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+        Vector2 m = GetMousePosition();
+        Rectangle wall_swatch = { UI_X, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE };
+        Rectangle orb_swatch  = { UI_X + SWATCH_SIZE + SWATCH_GAP, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE };
+        if (CheckCollisionPointRec(m, wall_swatch)) { dt->paint_mode = DT_PAINT_WALL; return; }
+        if (CheckCollisionPointRec(m, orb_swatch))  { dt->paint_mode = DT_PAINT_ORB;  return; }
+    }
+
     if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) || IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
         Vector2 mouse = GetMousePosition();
         int cx = (int)((mouse.x - CANVAS_ORIGIN_X) / CELL_PIXELS);
         int cy = (int)((mouse.y - CANVAS_ORIGIN_Y) / CELL_PIXELS);
         if (cx >= 0 && cx < CANVAS_SIZE && cy >= 0 && cy < CANVAS_SIZE) {
-            dt->pixels[cy][cx] = IsMouseButtonDown(MOUSE_BUTTON_LEFT) ? 1 : 0;
+            if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+                dt->pixels[cy][cx] = CANVAS_VAL_FLOOR;
+            } else {
+                // Left-click: paint according to current mode
+                if (dt->paint_mode == DT_PAINT_WALL) {
+                    dt->pixels[cy][cx] = CANVAS_VAL_WALL;
+                } else {
+                    // Orb mode: only place if no adjacent orb (isolation rule)
+                    if (!orb_has_adjacent(dt, cx, cy))
+                        dt->pixels[cy][cx] = CANVAS_VAL_ORB;
+                }
+            }
         }
     }
 }
@@ -72,13 +116,18 @@ void DrawTool_Render(const DrawTool *dt) {
     DrawRectangle(CANVAS_ORIGIN_X, CANVAS_ORIGIN_Y, CANVAS_W_PX, CANVAS_H_PX, RAYWHITE);
 
     // Draw pixels
+    static const Color ORB_COLOR = { 50, 200, 50, 255 };
     for (int y = 0; y < CANVAS_SIZE; y++) {
         for (int x = 0; x < CANVAS_SIZE; x++) {
-            if (dt->pixels[y][x]) {
-                DrawRectangle(
-                    CANVAS_ORIGIN_X + x * CELL_PIXELS,
-                    CANVAS_ORIGIN_Y + y * CELL_PIXELS,
-                    CELL_PIXELS, CELL_PIXELS, BLACK);
+            int px = CANVAS_ORIGIN_X + x * CELL_PIXELS;
+            int py = CANVAS_ORIGIN_Y + y * CELL_PIXELS;
+            if (dt->pixels[y][x] == CANVAS_VAL_WALL) {
+                DrawRectangle(px, py, CELL_PIXELS, CELL_PIXELS, BLACK);
+            } else if (dt->pixels[y][x] == CANVAS_VAL_ORB) {
+                DrawRectangle(px, py, CELL_PIXELS, CELL_PIXELS, RAYWHITE);
+                // Draw a small green circle to represent the orb
+                DrawCircle(px + CELL_PIXELS / 2, py + CELL_PIXELS / 2,
+                           CELL_PIXELS / 2 - 4, ORB_COLOR);
             }
         }
     }
@@ -103,10 +152,28 @@ void DrawTool_Render(const DrawTool *dt) {
     DrawText("Paint a tiny wall pattern.", UI_X, iy,      16, LIGHTGRAY); iy += 22;
     DrawText("WFC reads local structure", UI_X, iy,       16, LIGHTGRAY); iy += 22;
     DrawText("and tiles it infinitely.", UI_X, iy,        16, LIGHTGRAY); iy += 30;
-    DrawText("Left click  = wall", UI_X, iy,              16, (Color){200,200,200,255}); iy += 20;
-    DrawText("Right click = erase", UI_X, iy,             16, (Color){200,200,200,255}); iy += 30;
+    DrawText("Left click  = paint mode", UI_X, iy,        16, (Color){200,200,200,255}); iy += 20;
+    DrawText("Right click = erase", UI_X, iy,             16, (Color){200,200,200,255}); iy += 20;
+    DrawText("G = toggle paint mode", UI_X, iy,           16, (Color){200,200,200,255}); iy += 30;
     DrawText("ENTER or Start", UI_X, iy,                  16, YELLOW);    iy += 20;
     DrawText("to explore.", UI_X, iy,                     16, YELLOW);
+
+    // Paint-mode swatches
+    int sw_wall_x = UI_X;
+    int sw_orb_x  = UI_X + SWATCH_SIZE + SWATCH_GAP;
+    // Wall swatch (black)
+    DrawRectangle(sw_wall_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, BLACK);
+    DrawRectangleLines(sw_wall_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, GRAY);
+    // Orb swatch (green)
+    DrawRectangle(sw_orb_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, RAYWHITE);
+    DrawCircle(sw_orb_x + SWATCH_SIZE / 2, SWATCH_Y + SWATCH_SIZE / 2,
+               SWATCH_SIZE / 2 - 3, ORB_COLOR);
+    DrawRectangleLines(sw_orb_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, GRAY);
+    // Active highlight (bright white border around selected swatch)
+    int active_x = (dt->paint_mode == DT_PAINT_WALL) ? sw_wall_x : sw_orb_x;
+    DrawRectangleLinesEx((Rectangle){ active_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE }, 2, WHITE);
+    // Labels
+    DrawText("Wall  Orb", UI_X, SWATCH_Y + SWATCH_SIZE + 4, 13, LIGHTGRAY);
 
     // Clear button
     Rectangle clear_btn = { BTN_CLEAR_X, BTN_CLEAR_Y, BTN_CLEAR_W, BTN_CLEAR_H };

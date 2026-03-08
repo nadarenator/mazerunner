@@ -1,13 +1,17 @@
 # MazeRunner
 
-A procedurally generated infinite maze exploration game written in C with Raylib. You draw a tiny 8×8 pixel pattern, and a Wave Function Collapse algorithm turns it into an ever-shifting infinite maze you can explore in your browser.
+A procedurally generated infinite maze exploration game written in C with Raylib. You draw a tiny 8×8 pixel pattern, and a Wave Function Collapse algorithm turns it into an ever-shifting infinite maze you can explore in your browser. Your health decays constantly; find and collect the green orbs scattered through the maze to stay alive.
 
 ## How to Play
 
-1. **Draw mode** — Paint an 8×8 tile using your mouse. Left-click = wall (black), right-click = floor (white). A default pattern is pre-loaded so you can start immediately.
+1. **Draw mode** — Paint an 8×8 tile using your mouse. Left-click = paint, right-click = erase. A default pattern is pre-loaded so you can start immediately.
+   - **Wall mode** (black): paints solid walls that block movement.
+   - **Orb mode** (green): paints orb spawn points. Press **G** or click a colour swatch to switch modes. Orbs must be placed as single isolated pixels — no two orbs can be adjacent.
 2. Press **Enter** or click **Start Exploring** to generate the maze.
-3. **Play mode** — Navigate the maze with **WASD** or **arrow keys**. The maze extends infinitely in all directions. Tiles that scroll offscreen are discarded and freshly regenerated if you return — the maze intentionally shifts to stay alive.
-4. Press **ESC** to return to draw mode and create a new maze from a different pattern.
+3. **Play mode** — Navigate with **WASD** or **arrow keys**. The maze extends infinitely; tiles that scroll offscreen are discarded and freshly regenerated if you return.
+   - Your **health bar** (bottom of screen) drains continuously. Walk over a **green orb** to restore it to full.
+   - Health hits zero → **Game Over**. Press **Enter**, **Space**, or **ESC** to try again.
+4. Press **ESC** at any time to return to draw mode and start fresh.
 
 A circular torch viewport (radius 280px) limits your vision. Everything beyond it is black.
 
@@ -65,6 +69,7 @@ make
 Make sure emsdk is sourced first (or it will be sourced automatically by the Makefile if `~/emsdk` exists).
 
 ```bash
+source ~/emsdk/emsdk_env.sh
 make web
 ```
 
@@ -107,13 +112,13 @@ pkill -f "http.server 8080"
 
 ## Tests
 
-Each module has a standalone test. Visual tests open a window; the WFC test is headless.
+Each module has a standalone test. The WFC test is headless; all others open a window.
 
 ```bash
-make test-wfc      # headless — prints ASCII maze to stdout, no window
-make test-draw     # visual — opens the draw canvas, left/right click to paint
-make test-maze     # visual — maze scroll with crosshair camera, no player collision
-make test-player   # visual — full player movement and wall collision
+make test-wfc      # headless — pattern extraction, generation, orb pattern tests
+make test-draw     # visual — draw canvas with wall/orb paint modes and adjacency checks
+make test-maze     # visual — maze scroll with orb tiles shown as green dots
+make test-player   # visual — full player movement, health decay, and orb pickup
 ```
 
 All visual tests exit with **ESC**.
@@ -128,8 +133,8 @@ mazerunner/
 ├── src/
 │   ├── main.c             Game entry point, state machine, Emscripten loop
 │   ├── wfc.h / wfc.c      Wave Function Collapse — pattern extraction + generation
-│   ├── draw_tool.h / .c   8×8 MS Paint-style canvas
-│   ├── maze.h / maze.c    Rolling tile buffer, WFC-driven infinite scroll, circular render
+│   ├── draw_tool.h / .c   8×8 canvas with wall/orb paint modes
+│   ├── maze.h / maze.c    Rolling tile buffer, WFC-driven infinite scroll, orb tracking, circular render
 │   └── player.h / player.c  Movement, wall collision, camera
 ├── tests/
 │   ├── test_wfc.c
@@ -149,10 +154,12 @@ mazerunner/
 
 ## Controls
 
-| Key | Action |
-|-----|--------|
+| Key / Input | Action |
+|-------------|--------|
 | WASD / Arrow keys | Move |
-| ESC | Return to draw mode |
-| Left-click (draw mode) | Paint wall |
+| ESC (play mode) | Return to draw mode |
+| ESC / ENTER / SPACE (game over) | Return to draw mode |
+| Left-click (draw mode) | Paint current mode (wall or orb) |
 | Right-click (draw mode) | Erase (floor) |
+| G (draw mode) | Toggle wall / orb paint mode |
 | Enter (draw mode) | Start exploring |

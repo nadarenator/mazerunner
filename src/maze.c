@@ -7,8 +7,10 @@
 // ---- Internal: set one cell from a pattern index ----
 
 static void set_cell(MazeBuffer *mb, int r, int c, int pat) {
+    int center = WFC_CenterPixel(mb->wfc, pat);
     mb->cells[r][c].pat_idx = (int16_t)pat;
-    mb->cells[r][c].is_wall = (uint8_t)WFC_CenterPixel(mb->wfc, pat);
+    mb->cells[r][c].is_wall = (uint8_t)(center == 1);  // only wall (1) blocks; orb (2) is walkable
+    mb->cells[r][c].has_orb = (uint8_t)(center == 2);
 }
 
 // ---- WFC generation helpers ----
@@ -135,11 +137,25 @@ void Maze_Render(const MazeBuffer *mb, float camera_x, float camera_y) {
         }
     }
 
+    // Draw orbs on top of tiles, before the vision ring clips them
+    static const Color ORB_COLOR = { 50, 220, 50, 255 };
+    for (int r = 0; r < BUF_H; r++) {
+        for (int c = 0; c < BUF_W; c++) {
+            if (!mb->cells[r][c].has_orb) continue;
+            float sx = (float)(mb->origin_x + c) * TILE_SIZE - camera_x;
+            float sy = (float)(mb->origin_y + r) * TILE_SIZE - camera_y;
+            if (sx > SCREEN_W || sx < -(float)TILE_SIZE) continue;
+            if (sy > SCREEN_H || sy < -(float)TILE_SIZE) continue;
+            float cx = sx + TILE_SIZE / 2.0f;
+            float cy = sy + TILE_SIZE / 2.0f;
+            DrawCircle((int)cx, (int)cy, 6, ORB_COLOR);
+            DrawCircleLines((int)cx, (int)cy, 7, (Color){180, 255, 180, 160});
+        }
+    }
+
     // Circular vision: black ring covering everything outside the vision sphere.
-    // DrawRing(center, innerRadius, outerRadius, ...) draws a filled annulus.
-    // Making outerRadius larger than the screen diagonal ensures all corners are covered.
     Vector2 center = { SCREEN_W / 2.0f, SCREEN_H / 2.0f };
-    float outer = (float)(SCREEN_W + SCREEN_H); // larger than screen diagonal
+    float outer = (float)(SCREEN_W + SCREEN_H);
     DrawRing(center, VISION_RADIUS, outer, 0.0f, 360.0f, 128, BLACK);
 }
 
@@ -148,6 +164,15 @@ int Maze_IsWall(const MazeBuffer *mb, int tile_x, int tile_y) {
     int r = tile_y - mb->origin_y;
     if (c < 0 || c >= BUF_W || r < 0 || r >= BUF_H) return 1;
     return mb->cells[r][c].is_wall;
+}
+
+int Maze_TryCollectOrb(MazeBuffer *mb, int tile_x, int tile_y) {
+    int c = tile_x - mb->origin_x;
+    int r = tile_y - mb->origin_y;
+    if (c < 0 || c >= BUF_W || r < 0 || r >= BUF_H) return 0;
+    if (!mb->cells[r][c].has_orb) return 0;
+    mb->cells[r][c].has_orb = 0;
+    return 1;
 }
 
 void Maze_GetStartPos(const MazeBuffer *mb, float *out_x, float *out_y) {
