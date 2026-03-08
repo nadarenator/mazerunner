@@ -15,15 +15,6 @@ static void set_cell(MazeBuffer *mb, int r, int c, int pat) {
 
 // ---- WFC generation helpers ----
 
-static void gen_column(MazeBuffer *mb, int col) {
-    int left_pats[BUF_H];
-    int out_pats[BUF_H];
-    for (int r = 0; r < BUF_H; r++)
-        left_pats[r] = (col > 0) ? mb->cells[r][col - 1].pat_idx : -1;
-    WFC_GenerateColumn(mb->wfc, BUF_H, left_pats, out_pats);
-    for (int r = 0; r < BUF_H; r++)
-        set_cell(mb, r, col, out_pats[r]);
-}
 
 static void gen_row(MazeBuffer *mb, int row) {
     int top_pats[BUF_W];
