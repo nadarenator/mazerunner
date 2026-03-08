@@ -42,7 +42,13 @@ static void scroll_right(MazeBuffer *mb) {
         memmove(&mb->cells[r][0], &mb->cells[r][1],
                 (BUF_W - 1) * sizeof(TileCell));
     mb->origin_x++;
-    gen_column(mb, BUF_W - 1);
+    // Unconstrained: edge patterns after 44 propagation steps have sparse
+    // RIGHT adjacency, causing constant contradictions → all-floor output.
+    int left_pats[BUF_H];
+    int out_pats[BUF_H];
+    for (int r = 0; r < BUF_H; r++) left_pats[r] = -1;
+    WFC_GenerateColumn(mb->wfc, BUF_H, left_pats, out_pats);
+    for (int r = 0; r < BUF_H; r++) set_cell(mb, r, BUF_W - 1, out_pats[r]);
 }
 
 static void scroll_left(MazeBuffer *mb) {
@@ -62,7 +68,13 @@ static void scroll_down(MazeBuffer *mb) {
     memmove(&mb->cells[0][0], &mb->cells[1][0],
             (BUF_H - 1) * BUF_W * sizeof(TileCell));
     mb->origin_y++;
-    gen_row(mb, BUF_H - 1);
+    // Unconstrained: same reason as scroll_right — edge patterns have sparse
+    // DOWN adjacency after many propagation steps.
+    int top_pats[BUF_W];
+    int out_pats[BUF_W];
+    for (int c = 0; c < BUF_W; c++) top_pats[c] = -1;
+    WFC_GenerateRow(mb->wfc, BUF_W, top_pats, out_pats);
+    for (int c = 0; c < BUF_W; c++) set_cell(mb, BUF_H - 1, c, out_pats[c]);
 }
 
 static void scroll_up(MazeBuffer *mb) {
