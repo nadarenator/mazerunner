@@ -6,7 +6,7 @@ RAYLIB_SRC     = lib/raylib/src
 RAYLIB_LIB     = lib/raylib/build/raylib/libraylib.a
 RAYLIB_LIB_WEB = lib/raylib/build_web/raylib/libraylib.a
 
-SRCS = src/main.c src/wfc.c src/draw_tool.c src/maze.c src/player.c
+SRCS = src/main.c src/wfc.c src/draw_tool.c src/maze.c src/player.c src/enemy.c
 
 CFLAGS   = -Wall -Wextra -O2 -I$(RAYLIB_SRC) -Isrc
 LDFLAGS  = $(RAYLIB_LIB) -lm -ldl -lpthread -lGL -lX11 -lXrandr -lXinerama -lXcursor -lXi
@@ -50,9 +50,14 @@ test-player: tests/test_player.c src/wfc.c src/maze.c src/player.c src/draw_tool
 	$(CC) $(CFLAGS) $^ $(LDFLAGS) -o tests/test_player
 	./tests/test_player
 
+# Enemy test: visual — enemies chase player through maze using BFS
+test-enemy: tests/test_enemy.c src/wfc.c src/maze.c src/player.c src/draw_tool.c src/enemy.c
+	$(CC) $(CFLAGS) $^ $(LDFLAGS) -o tests/test_enemy
+	./tests/test_enemy
+
 clean:
 	rm -f mazerunner src/*.o
 	rm -f web/index.html web/index.js web/index.wasm web/index.data
-	rm -f tests/test_wfc tests/test_draw tests/test_maze tests/test_player
+	rm -f tests/test_wfc tests/test_draw tests/test_maze tests/test_player tests/test_enemy
 
-.PHONY: all web clean test-wfc test-draw test-maze test-player
+.PHONY: all web clean test-wfc test-draw test-maze test-player test-enemy

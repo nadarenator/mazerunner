@@ -3,6 +3,7 @@
 #include "draw_tool.h"
 #include "maze.h"
 #include "player.h"
+#include "enemy.h"
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
@@ -30,6 +31,8 @@ static WFCData    g_wfc;
 static MazeBuffer g_maze;
 static Player     g_player;
 static float      g_hunger;
+static EnemyList  g_enemies;
+static int        g_caught_by_enemy; // 1 = enemy caused game over, 0 = hunger
 
 static void TransitionToPlay(void) {
     // Build WFC from whatever the user drew
@@ -47,7 +50,16 @@ static void TransitionToPlay(void) {
     Maze_GetStartPos(&g_maze, &sx, &sy);
     Player_Init(&g_player, sx, sy);
 
+    // Spawn enemies from tiles generated during maze init (within vision radius only)
+    EnemyList_Init(&g_enemies);
+    float spawn_x[MAX_ENEMIES], spawn_y[MAX_ENEMIES];
+    int n = Maze_DrainEnemySpawns(&g_maze, sx, sy, VISION_RADIUS,
+                                   spawn_x, spawn_y, MAX_ENEMIES);
+    for (int i = 0; i < n; i++)
+        EnemyList_Spawn(&g_enemies, spawn_x[i], spawn_y[i]);
+
     g_hunger = HUNGER_MAX;
+    g_caught_by_enemy = 0;
     g_state = STATE_PLAY;
 }
 
@@ -97,6 +109,17 @@ static void UpdateDrawFrame(void) {
         Player_Update(&g_player, &g_maze, dt);
         Maze_Update(&g_maze, g_player.x, g_player.y);
 
+        // Spawn enemies as their tiles come within the vision radius
+        float spawn_x[MAX_ENEMIES], spawn_y[MAX_ENEMIES];
+        int n = Maze_DrainEnemySpawns(&g_maze, g_player.x, g_player.y, VISION_RADIUS,
+                                       spawn_x, spawn_y, MAX_ENEMIES);
+        for (int i = 0; i < n; i++)
+            EnemyList_Spawn(&g_enemies, spawn_x[i], spawn_y[i]);
+
+        // Cull enemies that scrolled off the buffer, then chase player
+        EnemyList_CullOutOfBounds(&g_enemies, &g_maze, g_player.x, g_player.y, VISION_RADIUS);
+        EnemyList_Update(&g_enemies, &g_maze, g_player.x, g_player.y, dt);
+
         // Hunger decay
         g_hunger -= HUNGER_DECAY_RATE * dt;
         if (g_hunger < 0.0f) g_hunger = 0.0f;
@@ -109,9 +132,17 @@ static void UpdateDrawFrame(void) {
             if (g_hunger > HUNGER_MAX) g_hunger = HUNGER_MAX;
         }
 
-        // Game over when hunger runs out
-        if (g_hunger <= 0.0f)
+        // Game over: caught by enemy
+        if (EnemyList_CheckPlayerCollision(&g_enemies, g_player.x, g_player.y)) {
+            g_caught_by_enemy = 1;
             g_state = STATE_GAMEOVER;
+        }
+
+        // Game over: hunger runs out
+        if (g_hunger <= 0.0f) {
+            g_caught_by_enemy = 0;
+            g_state = STATE_GAMEOVER;
+        }
 
         // ESC returns to draw mode
         if (IsKeyPressed(KEY_ESCAPE))
@@ -134,8 +165,10 @@ static void UpdateDrawFrame(void) {
         float cam_x = Player_CameraX(&g_player);
         float cam_y = Player_CameraY(&g_player);
 
-        Maze_Render(&g_maze, cam_x, cam_y);
+        Maze_RenderTiles(&g_maze, cam_x, cam_y);
+        EnemyList_Render(&g_enemies, cam_x, cam_y);
         Player_Render(&g_player, cam_x, cam_y);
+        Maze_RenderVision();
 
         // HUD
         DrawText("WASD / Arrows  |  ESC = redraw", 10, 10, 14, (Color){180,180,180,160});
@@ -147,8 +180,9 @@ static void UpdateDrawFrame(void) {
         int cx = SCREEN_W / 2;
         int cy = SCREEN_H / 2;
         DrawText("GAME OVER", cx - MeasureText("GAME OVER", 72) / 2, cy - 80, 72, RED);
-        DrawText("You ran out of food.",
-                 cx - MeasureText("You ran out of food.", 22) / 2, cy + 10, 22, LIGHTGRAY);
+        const char *reason = g_caught_by_enemy ? "You were caught by an enemy."
+                                               : "You ran out of food.";
+        DrawText(reason, cx - MeasureText(reason, 22) / 2, cy + 10, 22, LIGHTGRAY);
         DrawText("Press ENTER, SPACE, or ESC to try again.",
                  cx - MeasureText("Press ENTER, SPACE, or ESC to try again.", 18) / 2,
                  cy + 50, 18, (Color){200,200,200,200});

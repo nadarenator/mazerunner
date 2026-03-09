@@ -44,6 +44,9 @@ int WFC_CenterPixel(const WFCData *wfc, int pat_idx);
 // Return 1 if the center of this pattern is an orb spawn (value 2).
 int WFC_CenterIsOrb(const WFCData *wfc, int pat_idx);
 
+// Return 1 if the center of this pattern is an enemy spawn (value 3).
+int WFC_CenterIsEnemy(const WFCData *wfc, int pat_idx);
+
 // Return 1 if at least one walkable (non-wall) pattern exists.
 // Both floor (0) and orb (2) centres count as walkable.
 int WFC_HasFloorPattern(const WFCData *wfc);

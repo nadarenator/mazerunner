@@ -8,9 +8,10 @@
 
 static void set_cell(MazeBuffer *mb, int r, int c, int pat) {
     int center = WFC_CenterPixel(mb->wfc, pat);
-    mb->cells[r][c].pat_idx = (int16_t)pat;
-    mb->cells[r][c].is_wall = (uint8_t)(center == 1);  // only wall (1) blocks; orb (2) is walkable
-    mb->cells[r][c].has_orb = (uint8_t)(center == 2);
+    mb->cells[r][c].pat_idx          = (int16_t)pat;
+    mb->cells[r][c].is_wall          = (uint8_t)(center == 1); // wall(1) blocks; orb(2)/enemy(3) walkable
+    mb->cells[r][c].has_orb          = (uint8_t)(center == 2);
+    mb->cells[r][c].has_enemy_spawn  = (uint8_t)(center == 3);
 }
 
 // ---- WFC generation helpers ----
@@ -127,7 +128,7 @@ void Maze_Update(MazeBuffer *mb, float player_world_x, float player_world_y) {
     while (dy < 0) { scroll_up(mb);    dy++; }
 }
 
-void Maze_Render(const MazeBuffer *mb, float camera_x, float camera_y) {
+void Maze_RenderTiles(const MazeBuffer *mb, float camera_x, float camera_y) {
     // Draw all tiles
     for (int r = 0; r < BUF_H; r++) {
         for (int c = 0; c < BUF_W; c++) {
@@ -140,7 +141,7 @@ void Maze_Render(const MazeBuffer *mb, float camera_x, float camera_y) {
         }
     }
 
-    // Draw orbs on top of tiles, before the vision ring clips them
+    // Draw orbs on top of tiles
     static const Color ORB_COLOR = { 50, 220, 50, 255 };
     for (int r = 0; r < BUF_H; r++) {
         for (int c = 0; c < BUF_W; c++) {
@@ -155,11 +156,18 @@ void Maze_Render(const MazeBuffer *mb, float camera_x, float camera_y) {
             DrawCircleLines((int)cx, (int)cy, 7, (Color){180, 255, 180, 160});
         }
     }
+}
 
-    // Circular vision: black ring covering everything outside the vision sphere.
+void Maze_RenderVision(void) {
+    // Black ring that masks everything outside the circular torch viewport.
     Vector2 center = { SCREEN_W / 2.0f, SCREEN_H / 2.0f };
     float outer = (float)(SCREEN_W + SCREEN_H);
     DrawRing(center, VISION_RADIUS, outer, 0.0f, 360.0f, 128, BLACK);
+}
+
+void Maze_Render(const MazeBuffer *mb, float camera_x, float camera_y) {
+    Maze_RenderTiles(mb, camera_x, camera_y);
+    Maze_RenderVision();
 }
 
 int Maze_IsWall(const MazeBuffer *mb, int tile_x, int tile_y) {
@@ -176,6 +184,27 @@ int Maze_TryCollectOrb(MazeBuffer *mb, int tile_x, int tile_y) {
     if (!mb->cells[r][c].has_orb) return 0;
     mb->cells[r][c].has_orb = 0;
     return 1;
+}
+
+int Maze_DrainEnemySpawns(MazeBuffer *mb,
+                           float player_x, float player_y, float radius,
+                           float *out_x, float *out_y, int max_count) {
+    float r2 = radius * radius;
+    int n = 0;
+    for (int r = 0; r < BUF_H && n < max_count; r++) {
+        for (int c = 0; c < BUF_W && n < max_count; c++) {
+            if (!mb->cells[r][c].has_enemy_spawn) continue;
+            float wx = (float)(mb->origin_x + c) * TILE_SIZE + TILE_SIZE / 2.0f;
+            float wy = (float)(mb->origin_y + r) * TILE_SIZE + TILE_SIZE / 2.0f;
+            float dx = wx - player_x, dy = wy - player_y;
+            if (dx*dx + dy*dy > r2) continue; // out of range — keep flag for later
+            mb->cells[r][c].has_enemy_spawn = 0;
+            out_x[n] = wx;
+            out_y[n] = wy;
+            n++;
+        }
+    }
+    return n;
 }
 
 void Maze_GetStartPos(const MazeBuffer *mb, float *out_x, float *out_y) {

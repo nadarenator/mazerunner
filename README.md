@@ -1,15 +1,18 @@
 # MazeRunner
 
-A procedurally generated infinite maze exploration game written in C with Raylib. You draw a tiny 8×8 pixel pattern, and a Wave Function Collapse algorithm turns it into an ever-shifting infinite maze you can explore in your browser. Your health decays constantly; find and collect the green orbs scattered through the maze to stay alive.
+A procedurally generated infinite maze exploration game written in C with Raylib. You draw a tiny 8×8 pixel pattern, and a Wave Function Collapse algorithm turns it into an ever-shifting infinite maze you can explore in your browser. Your hunger increases constantly; find and collect the green orbs scattered through the maze to stay alive — and avoid the red enemies that spawn from the darkness and chase you down.
 
 ## How to Play
 
 1. **Draw mode** — Paint an 8×8 tile using your mouse. Left-click = paint, right-click = erase. A default pattern is pre-loaded so you can start immediately.
    - **Wall mode** (black): paints solid walls that block movement.
-   - **Orb mode** (green): paints orb spawn points. Press **G** or click a colour swatch to switch modes. Orbs must be placed as single isolated pixels — no two orbs can be adjacent.
+   - **Orb mode** (green): paints orb spawn points. Orbs must be placed as single isolated pixels — no two orbs can be adjacent.
+   - **Enemy mode** (red): paints enemy spawn points. Same isolation rule applies.
+   - Press **G** to cycle between modes, or click a colour swatch to select directly.
 2. Press **Enter** or click **Start Exploring** to generate the maze.
 3. **Play mode** — Navigate with **WASD** or **arrow keys**. The maze extends infinitely; tiles that scroll offscreen are discarded and freshly regenerated if you return.
    - Your **hunger bar** (bottom of screen) drains continuously. Walk over a **green orb** to restore 50% hunger.
+   - **Red enemies** spawn from within your torch radius and chase you using shortest-path (BFS). They move at half your speed. Contact means **Game Over**.
    - Hunger hits zero → **Game Over**. Press **Enter**, **Space**, or **ESC** to try again.
 4. Press **ESC** at any time to return to draw mode and start fresh.
 
@@ -116,9 +119,10 @@ Each module has a standalone test. The WFC test is headless; all others open a w
 
 ```bash
 make test-wfc      # headless — pattern extraction, generation, orb pattern tests
-make test-draw     # visual — draw canvas with wall/orb paint modes and adjacency checks
+make test-draw     # visual — draw canvas with wall/orb/enemy paint modes and adjacency checks
 make test-maze     # visual — maze scroll with orb tiles shown as green dots
 make test-player   # visual — full player movement, health decay, and orb pickup
+make test-enemy    # visual — BFS enemies chasing player through maze
 ```
 
 All visual tests exit with **ESC**.
@@ -133,14 +137,16 @@ mazerunner/
 ├── src/
 │   ├── main.c             Game entry point, state machine, Emscripten loop
 │   ├── wfc.h / wfc.c      Wave Function Collapse — pattern extraction + generation
-│   ├── draw_tool.h / .c   8×8 canvas with wall/orb paint modes
-│   ├── maze.h / maze.c    Rolling tile buffer, WFC-driven infinite scroll, orb tracking, circular render
-│   └── player.h / player.c  Movement, wall collision, camera
+│   ├── draw_tool.h / .c   8×8 canvas with wall/orb/enemy paint modes
+│   ├── maze.h / maze.c    Rolling tile buffer, WFC-driven infinite scroll, orb/enemy tracking, circular render
+│   ├── player.h / player.c  Movement, wall collision, camera
+│   └── enemy.h / enemy.c  BFS-chasing enemies, spawn/cull/render
 ├── tests/
 │   ├── test_wfc.c
 │   ├── test_draw.c
 │   ├── test_maze.c
-│   └── test_player.c
+│   ├── test_player.c
+│   └── test_enemy.c
 ├── web/
 │   ├── shell.html         Emscripten HTML template
 │   ├── index.html         Generated — do not edit
@@ -159,7 +165,7 @@ mazerunner/
 | WASD / Arrow keys | Move |
 | ESC (play mode) | Return to draw mode |
 | ESC / ENTER / SPACE (game over) | Return to draw mode |
-| Left-click (draw mode) | Paint current mode (wall or orb) |
+| Left-click (draw mode) | Paint current mode (wall, orb, or enemy) |
 | Right-click (draw mode) | Erase (floor) |
-| G (draw mode) | Toggle wall / orb paint mode |
+| G (draw mode) | Cycle paint mode: wall → orb → enemy |
 | Enter (draw mode) | Start exploring |

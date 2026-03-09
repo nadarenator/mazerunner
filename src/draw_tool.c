@@ -76,18 +76,32 @@ static int orb_has_adjacent(const DrawTool *dt, int cx, int cy) {
     return 0;
 }
 
+// Returns 1 if placing an enemy at (cx,cy) would violate the isolation rule.
+static int enemy_has_adjacent(const DrawTool *dt, int cx, int cy) {
+    int dirs[4][2] = {{0,-1},{0,1},{-1,0},{1,0}};
+    for (int d = 0; d < 4; d++) {
+        int nx = cx + dirs[d][0];
+        int ny = cy + dirs[d][1];
+        if (nx >= 0 && nx < CANVAS_SIZE && ny >= 0 && ny < CANVAS_SIZE)
+            if (dt->pixels[ny][nx] == CANVAS_VAL_ENEMY) return 1;
+    }
+    return 0;
+}
+
 void DrawTool_Update(DrawTool *dt) {
-    // G key toggles paint mode
+    // G key cycles through all three paint modes
     if (IsKeyPressed(KEY_G))
-        dt->paint_mode = (dt->paint_mode == DT_PAINT_WALL) ? DT_PAINT_ORB : DT_PAINT_WALL;
+        dt->paint_mode = (dt->paint_mode + 1) % 3;
 
     // Swatch button clicks (left-click on the mode swatches)
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         Vector2 m = GetMousePosition();
-        Rectangle wall_swatch = { UI_X, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE };
-        Rectangle orb_swatch  = { UI_X + SWATCH_SIZE + SWATCH_GAP, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE };
-        if (CheckCollisionPointRec(m, wall_swatch)) { dt->paint_mode = DT_PAINT_WALL; return; }
-        if (CheckCollisionPointRec(m, orb_swatch))  { dt->paint_mode = DT_PAINT_ORB;  return; }
+        Rectangle wall_swatch  = { UI_X, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE };
+        Rectangle orb_swatch   = { UI_X + SWATCH_SIZE + SWATCH_GAP, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE };
+        Rectangle enemy_swatch = { UI_X + 2 * (SWATCH_SIZE + SWATCH_GAP), SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE };
+        if (CheckCollisionPointRec(m, wall_swatch))  { dt->paint_mode = DT_PAINT_WALL;  return; }
+        if (CheckCollisionPointRec(m, orb_swatch))   { dt->paint_mode = DT_PAINT_ORB;   return; }
+        if (CheckCollisionPointRec(m, enemy_swatch)) { dt->paint_mode = DT_PAINT_ENEMY; return; }
     }
 
     if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) || IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
@@ -98,13 +112,15 @@ void DrawTool_Update(DrawTool *dt) {
             if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
                 dt->pixels[cy][cx] = CANVAS_VAL_FLOOR;
             } else {
-                // Left-click: paint according to current mode
                 if (dt->paint_mode == DT_PAINT_WALL) {
                     dt->pixels[cy][cx] = CANVAS_VAL_WALL;
-                } else {
-                    // Orb mode: only place if no adjacent orb (isolation rule)
+                } else if (dt->paint_mode == DT_PAINT_ORB) {
                     if (!orb_has_adjacent(dt, cx, cy))
                         dt->pixels[cy][cx] = CANVAS_VAL_ORB;
+                } else {
+                    // Enemy mode: isolated placement (no two adjacent enemy pixels)
+                    if (!enemy_has_adjacent(dt, cx, cy))
+                        dt->pixels[cy][cx] = CANVAS_VAL_ENEMY;
                 }
             }
         }
@@ -116,7 +132,8 @@ void DrawTool_Render(const DrawTool *dt) {
     DrawRectangle(CANVAS_ORIGIN_X, CANVAS_ORIGIN_Y, CANVAS_W_PX, CANVAS_H_PX, RAYWHITE);
 
     // Draw pixels
-    static const Color ORB_COLOR = { 50, 200, 50, 255 };
+    static const Color ORB_COLOR   = { 50,  200, 50,  255 };
+    static const Color ENEMY_COLOR = { 220, 40,  40,  255 };
     for (int y = 0; y < CANVAS_SIZE; y++) {
         for (int x = 0; x < CANVAS_SIZE; x++) {
             int px = CANVAS_ORIGIN_X + x * CELL_PIXELS;
@@ -125,9 +142,12 @@ void DrawTool_Render(const DrawTool *dt) {
                 DrawRectangle(px, py, CELL_PIXELS, CELL_PIXELS, BLACK);
             } else if (dt->pixels[y][x] == CANVAS_VAL_ORB) {
                 DrawRectangle(px, py, CELL_PIXELS, CELL_PIXELS, RAYWHITE);
-                // Draw a small green circle to represent the orb
                 DrawCircle(px + CELL_PIXELS / 2, py + CELL_PIXELS / 2,
                            CELL_PIXELS / 2 - 4, ORB_COLOR);
+            } else if (dt->pixels[y][x] == CANVAS_VAL_ENEMY) {
+                DrawRectangle(px, py, CELL_PIXELS, CELL_PIXELS, RAYWHITE);
+                DrawCircle(px + CELL_PIXELS / 2, py + CELL_PIXELS / 2,
+                           CELL_PIXELS / 2 - 4, ENEMY_COLOR);
             }
         }
     }
@@ -154,13 +174,14 @@ void DrawTool_Render(const DrawTool *dt) {
     DrawText("and tiles it infinitely.", UI_X, iy,        16, LIGHTGRAY); iy += 30;
     DrawText("Left click  = paint mode", UI_X, iy,        16, (Color){200,200,200,255}); iy += 20;
     DrawText("Right click = erase", UI_X, iy,             16, (Color){200,200,200,255}); iy += 20;
-    DrawText("G = toggle paint mode", UI_X, iy,           16, (Color){200,200,200,255}); iy += 30;
+    DrawText("G = cycle paint mode", UI_X, iy,            16, (Color){200,200,200,255}); iy += 30;
     DrawText("ENTER or Start", UI_X, iy,                  16, YELLOW);    iy += 20;
     DrawText("to explore.", UI_X, iy,                     16, YELLOW);
 
     // Paint-mode swatches
-    int sw_wall_x = UI_X;
-    int sw_orb_x  = UI_X + SWATCH_SIZE + SWATCH_GAP;
+    int sw_wall_x  = UI_X;
+    int sw_orb_x   = UI_X + SWATCH_SIZE + SWATCH_GAP;
+    int sw_enemy_x = UI_X + 2 * (SWATCH_SIZE + SWATCH_GAP);
     // Wall swatch (black)
     DrawRectangle(sw_wall_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, BLACK);
     DrawRectangleLines(sw_wall_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, GRAY);
@@ -169,11 +190,17 @@ void DrawTool_Render(const DrawTool *dt) {
     DrawCircle(sw_orb_x + SWATCH_SIZE / 2, SWATCH_Y + SWATCH_SIZE / 2,
                SWATCH_SIZE / 2 - 3, ORB_COLOR);
     DrawRectangleLines(sw_orb_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, GRAY);
+    // Enemy swatch (red)
+    DrawRectangle(sw_enemy_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, RAYWHITE);
+    DrawCircle(sw_enemy_x + SWATCH_SIZE / 2, SWATCH_Y + SWATCH_SIZE / 2,
+               SWATCH_SIZE / 2 - 3, ENEMY_COLOR);
+    DrawRectangleLines(sw_enemy_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, GRAY);
     // Active highlight (bright white border around selected swatch)
-    int active_x = (dt->paint_mode == DT_PAINT_WALL) ? sw_wall_x : sw_orb_x;
+    int active_x = (dt->paint_mode == DT_PAINT_WALL) ? sw_wall_x :
+                   (dt->paint_mode == DT_PAINT_ORB)  ? sw_orb_x  : sw_enemy_x;
     DrawRectangleLinesEx((Rectangle){ active_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE }, 2, WHITE);
     // Labels
-    DrawText("Wall  Orb", UI_X, SWATCH_Y + SWATCH_SIZE + 4, 13, LIGHTGRAY);
+    DrawText("Wall  Orb  Enemy", UI_X, SWATCH_Y + SWATCH_SIZE + 4, 12, LIGHTGRAY);
 
     // Clear button
     Rectangle clear_btn = { BTN_CLEAR_X, BTN_CLEAR_Y, BTN_CLEAR_W, BTN_CLEAR_H };
