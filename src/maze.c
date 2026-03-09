@@ -4,6 +4,8 @@
 #include <math.h>
 #include <stdlib.h>
 
+static const float FRINGE_BAND = 3.0f * TILE_SIZE;  // 96px swivel band inside vision edge
+
 // ---- Internal: set one cell from a pattern index ----
 
 static void set_cell(MazeBuffer *mb, int r, int c, int pat) {
@@ -129,6 +131,10 @@ void Maze_Update(MazeBuffer *mb, float player_world_x, float player_world_y) {
 }
 
 void Maze_RenderTiles(const MazeBuffer *mb, float camera_x, float camera_y) {
+    float scx = SCREEN_W * 0.5f;
+    float scy = SCREEN_H * 0.5f;
+    float fringe_inner = VISION_RADIUS - FRINGE_BAND;
+
     // Draw all tiles
     for (int r = 0; r < BUF_H; r++) {
         for (int c = 0; c < BUF_W; c++) {
@@ -136,13 +142,33 @@ void Maze_RenderTiles(const MazeBuffer *mb, float camera_x, float camera_y) {
             float sy = (float)(mb->origin_y + r) * TILE_SIZE - camera_y;
             if (sx > SCREEN_W || sx < -(float)TILE_SIZE) continue;
             if (sy > SCREEN_H || sy < -(float)TILE_SIZE) continue;
+
+            float tile_cx = sx + TILE_SIZE * 0.5f;
+            float tile_cy = sy + TILE_SIZE * 0.5f;
+            float dx = tile_cx - scx;
+            float dy = tile_cy - scy;
+            float dist = sqrtf(dx * dx + dy * dy);
+
+            if (dist > VISION_RADIUS) continue;  // hidden by black ring — skip
+
             Color col = mb->cells[r][c].is_wall ? BLACK : RAYWHITE;
-            DrawRectangle((int)sx, (int)sy, TILE_SIZE, TILE_SIZE, col);
+
+            if (dist <= fringe_inner) {
+                DrawRectangle((int)sx, (int)sy, TILE_SIZE, TILE_SIZE, col);
+            } else {
+                float t      = (VISION_RADIUS - dist) / FRINGE_BAND;  // 0 at edge, 1 inside
+                float squish = cosf((1.0f - t) * (PI * 0.5f));
+                float depth  = TILE_SIZE * squish;
+                if (depth < 0.5f) continue;
+                col.a = (uint8_t)(t * 255.0f);
+                Rectangle rec    = { tile_cx, tile_cy, depth, (float)TILE_SIZE };
+                Vector2   origin = { depth * 0.5f, TILE_SIZE * 0.5f };
+                DrawRectanglePro(rec, origin, atan2f(dy, dx) * RAD2DEG, col);
+            }
         }
     }
 
     // Draw orbs on top of tiles
-    static const Color ORB_COLOR = { 50, 220, 50, 255 };
     for (int r = 0; r < BUF_H; r++) {
         for (int c = 0; c < BUF_W; c++) {
             if (!mb->cells[r][c].has_orb) continue;
@@ -150,10 +176,27 @@ void Maze_RenderTiles(const MazeBuffer *mb, float camera_x, float camera_y) {
             float sy = (float)(mb->origin_y + r) * TILE_SIZE - camera_y;
             if (sx > SCREEN_W || sx < -(float)TILE_SIZE) continue;
             if (sy > SCREEN_H || sy < -(float)TILE_SIZE) continue;
-            float cx = sx + TILE_SIZE / 2.0f;
-            float cy = sy + TILE_SIZE / 2.0f;
-            DrawCircle((int)cx, (int)cy, 6, ORB_COLOR);
-            DrawCircleLines((int)cx, (int)cy, 7, (Color){180, 255, 180, 160});
+
+            float tile_cx = sx + TILE_SIZE * 0.5f;
+            float tile_cy = sy + TILE_SIZE * 0.5f;
+            float dx = tile_cx - scx;
+            float dy = tile_cy - scy;
+            float dist = sqrtf(dx * dx + dy * dy);
+
+            if (dist > VISION_RADIUS) continue;
+
+            uint8_t alpha;
+            if (dist <= fringe_inner) {
+                alpha = 255;
+            } else {
+                float t = (VISION_RADIUS - dist) / FRINGE_BAND;
+                alpha = (uint8_t)(t * 255.0f);
+            }
+
+            Color orb_col  = (Color){ 50, 220, 50, alpha };
+            Color ring_col = (Color){ 180, 255, 180, (uint8_t)((160 * (int)alpha) / 255) };
+            DrawCircle((int)tile_cx, (int)tile_cy, 6, orb_col);
+            DrawCircleLines((int)tile_cx, (int)tile_cy, 7, ring_col);
         }
     }
 }
