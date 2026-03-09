@@ -11,11 +11,11 @@
 #include <emscripten/emscripten.h>
 #endif
 
-// Health constants
-#define HEALTH_MAX         1.0f
-#define HEALTH_DECAY_RATE  0.04f   // fraction lost per second; full bar lasts 25 s
+// Hunger constants
+#define HUNGER_MAX         1.0f
+#define HUNGER_DECAY_RATE  0.04f   // fraction lost per second; full bar lasts 25 s
 
-// Health bar HUD geometry (centred at bottom of screen, inside vision circle)
+// Hunger bar HUD geometry (centred at bottom of screen, inside vision circle)
 #define HB_W    300
 #define HB_H     16
 #define HB_X    ((SCREEN_W - HB_W) / 2)
@@ -29,7 +29,7 @@ static DrawTool   g_draw;
 static WFCData    g_wfc;
 static MazeBuffer g_maze;
 static Player     g_player;
-static float      g_health;
+static float      g_hunger;
 
 static void TransitionToPlay(void) {
     // Build WFC from whatever the user drew
@@ -47,24 +47,24 @@ static void TransitionToPlay(void) {
     Maze_GetStartPos(&g_maze, &sx, &sy);
     Player_Init(&g_player, sx, sy);
 
-    g_health = HEALTH_MAX;
+    g_hunger = HUNGER_MAX;
     g_state = STATE_PLAY;
 }
 
-// Draw the health bar HUD. `health` is in [0,1].
-static void draw_health_bar(float health) {
-    // Background (dark red trough)
+// Draw the hunger bar HUD. `hunger` is in [0,1].
+static void draw_hunger_bar(float hunger) {
+    // Background (dark trough)
     DrawRectangle(HB_X - 1, HB_Y - 1, HB_W + 2, HB_H + 2, (Color){60, 10, 10, 220});
-    // Filled portion: green → yellow → red depending on health level
-    int fill_w = (int)(health * HB_W);
+    // Filled portion: green → yellow → red depending on hunger level
+    int fill_w = (int)(hunger * HB_W);
     Color bar_col;
-    if (health > 0.5f) {
+    if (hunger > 0.5f) {
         // green → yellow
-        float t = (health - 0.5f) * 2.0f;  // 1 at full health, 0 at 50%
+        float t = (hunger - 0.5f) * 2.0f;  // 1 at full hunger, 0 at 50%
         bar_col = (Color){ (uint8_t)(255 * (1.0f - t)), 200, 0, 255 };
     } else {
         // yellow → red
-        float t = health * 2.0f;             // 1 at 50%, 0 at empty
+        float t = hunger * 2.0f;             // 1 at 50%, 0 at empty
         bar_col = (Color){ 220, (uint8_t)(180 * t), 0, 255 };
     }
     if (fill_w > 0)
@@ -72,7 +72,7 @@ static void draw_health_bar(float health) {
     // Border
     DrawRectangleLines(HB_X - 1, HB_Y - 1, HB_W + 2, HB_H + 2, (Color){200, 200, 200, 180});
     // Label
-    DrawText("HEALTH", HB_X, HB_Y - 18, 13, (Color){200, 200, 200, 180});
+    DrawText("HUNGER", HB_X, HB_Y - 18, 13, (Color){200, 200, 200, 180});
 }
 
 static void UpdateDrawFrame(void) {
@@ -97,18 +97,20 @@ static void UpdateDrawFrame(void) {
         Player_Update(&g_player, &g_maze, dt);
         Maze_Update(&g_maze, g_player.x, g_player.y);
 
-        // Health decay
-        g_health -= HEALTH_DECAY_RATE * dt;
-        if (g_health < 0.0f) g_health = 0.0f;
+        // Hunger decay
+        g_hunger -= HUNGER_DECAY_RATE * dt;
+        if (g_hunger < 0.0f) g_hunger = 0.0f;
 
         // Orb pickup: check the tile the player is standing on
         int ptx = (int)floorf(g_player.x / TILE_SIZE);
         int pty = (int)floorf(g_player.y / TILE_SIZE);
-        if (Maze_TryCollectOrb(&g_maze, ptx, pty))
-            g_health = HEALTH_MAX;
+        if (Maze_TryCollectOrb(&g_maze, ptx, pty)) {
+            g_hunger += 0.5f;
+            if (g_hunger > HUNGER_MAX) g_hunger = HUNGER_MAX;
+        }
 
-        // Game over when health runs out
-        if (g_health <= 0.0f)
+        // Game over when hunger runs out
+        if (g_hunger <= 0.0f)
             g_state = STATE_GAMEOVER;
 
         // ESC returns to draw mode
@@ -138,15 +140,15 @@ static void UpdateDrawFrame(void) {
         // HUD
         DrawText("WASD / Arrows  |  ESC = redraw", 10, 10, 14, (Color){180,180,180,160});
         DrawFPS(SCREEN_W - 70, 10);
-        draw_health_bar(g_health);
+        draw_hunger_bar(g_hunger);
 
     } else { // STATE_GAMEOVER
         // Semi-dark overlay (background already cleared to black)
         int cx = SCREEN_W / 2;
         int cy = SCREEN_H / 2;
         DrawText("GAME OVER", cx - MeasureText("GAME OVER", 72) / 2, cy - 80, 72, RED);
-        DrawText("You ran out of health.",
-                 cx - MeasureText("You ran out of health.", 22) / 2, cy + 10, 22, LIGHTGRAY);
+        DrawText("You ran out of food.",
+                 cx - MeasureText("You ran out of food.", 22) / 2, cy + 10, 22, LIGHTGRAY);
         DrawText("Press ENTER, SPACE, or ESC to try again.",
                  cx - MeasureText("Press ENTER, SPACE, or ESC to try again.", 18) / 2,
                  cy + 50, 18, (Color){200,200,200,200});

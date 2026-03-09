@@ -9,8 +9,8 @@ A procedurally generated infinite maze exploration game written in C with Raylib
    - **Orb mode** (green): paints orb spawn points. Press **G** or click a colour swatch to switch modes. Orbs must be placed as single isolated pixels — no two orbs can be adjacent.
 2. Press **Enter** or click **Start Exploring** to generate the maze.
 3. **Play mode** — Navigate with **WASD** or **arrow keys**. The maze extends infinitely; tiles that scroll offscreen are discarded and freshly regenerated if you return.
-   - Your **health bar** (bottom of screen) drains continuously. Walk over a **green orb** to restore it to full.
-   - Health hits zero → **Game Over**. Press **Enter**, **Space**, or **ESC** to try again.
+   - Your **hunger bar** (bottom of screen) drains continuously. Walk over a **green orb** to restore 50% hunger.
+   - Hunger hits zero → **Game Over**. Press **Enter**, **Space**, or **ESC** to try again.
 4. Press **ESC** at any time to return to draw mode and start fresh.
 
 A circular torch viewport (radius 280px) limits your vision. Everything beyond it is black.
