@@ -158,8 +158,18 @@ void Maze_RenderTiles(const MazeBuffer *mb, float camera_x, float camera_y) {
             if (dist <= fringe_inner) {
                 DrawRectangle((int)sx, (int)sy, TILE_SIZE, TILE_SIZE, col);
                 if (mb->cells[r][c].is_wall) {
+                    // Top/left bevel
                     DrawRectangle((int)sx, (int)sy, TILE_SIZE, 2, (Color){85, 74, 63, 255});
                     DrawRectangle((int)sx, (int)sy, 2, TILE_SIZE, (Color){85, 74, 63, 255});
+                    // Bottom cap: bright strip where floor lies directly below
+                    if (r + 1 < BUF_H && !mb->cells[r + 1][c].is_wall)
+                        DrawRectangle((int)sx, (int)sy + TILE_SIZE - 4, TILE_SIZE, 4,
+                                      (Color){120, 100, 78, 255});
+                } else {
+                    // Horizontal mortar lines (stone brickwork feel)
+                    Color mortar = {40, 35, 29, 255};
+                    for (int line = 8; line < TILE_SIZE; line += 8)
+                        DrawRectangle((int)sx, (int)sy + line, TILE_SIZE, 1, mortar);
                 }
             } else {
                 float t      = (VISION_RADIUS - dist) / FRINGE_BAND;  // 0 at edge, 1 inside

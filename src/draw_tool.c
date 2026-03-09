@@ -146,14 +146,32 @@ void DrawTool_Render(const DrawTool *dt) {
                 DrawRectangle(px, py, CELL_PIXELS, CELL_PIXELS, WALL_COLOR);
                 DrawRectangle(px, py, CELL_PIXELS, 2, BEVEL_COLOR);
                 DrawRectangle(px, py, 2, CELL_PIXELS, BEVEL_COLOR);
+                // Bottom cap where floor lies below
+                int below = (y + 1 < CANVAS_SIZE) ? dt->pixels[y + 1][x] : CANVAS_VAL_FLOOR;
+                if (below != CANVAS_VAL_WALL)
+                    DrawRectangle(px, py + CELL_PIXELS - 4, CELL_PIXELS, 4,
+                                  (Color){120, 100, 78, 255});
             } else if (dt->pixels[y][x] == CANVAS_VAL_ORB) {
                 DrawRectangle(px, py, CELL_PIXELS, CELL_PIXELS, FLOOR_COLOR);
+                // Mortar lines on floor background
+                Color mortar = {40, 35, 29, 255};
+                for (int line = 8; line < CELL_PIXELS; line += 8)
+                    DrawRectangle(px, py + line, CELL_PIXELS, 1, mortar);
                 DrawCircle(px + CELL_PIXELS / 2, py + CELL_PIXELS / 2,
                            CELL_PIXELS / 2 - 4, ORB_COLOR);
             } else if (dt->pixels[y][x] == CANVAS_VAL_ENEMY) {
                 DrawRectangle(px, py, CELL_PIXELS, CELL_PIXELS, FLOOR_COLOR);
+                // Mortar lines on floor background
+                Color mortar = {40, 35, 29, 255};
+                for (int line = 8; line < CELL_PIXELS; line += 8)
+                    DrawRectangle(px, py + line, CELL_PIXELS, 1, mortar);
                 DrawCircle(px + CELL_PIXELS / 2, py + CELL_PIXELS / 2,
                            CELL_PIXELS / 2 - 4, ENEMY_COLOR);
+            } else {
+                // Plain floor cell — mortar lines only
+                Color mortar = {40, 35, 29, 255};
+                for (int line = 8; line < CELL_PIXELS; line += 8)
+                    DrawRectangle(px, py + line, CELL_PIXELS, 1, mortar);
             }
         }
     }
