@@ -64,6 +64,12 @@ static int weighted_pick(const WFCData *wfc, const uint8_t *bits) {
     return -1;
 }
 
+static int first_valid(const WFCData *wfc, const uint8_t *bits) {
+    for (int p = 0; p < wfc->pattern_count; p++)
+        if ((bits[p / 8] >> (p % 8)) & 1) return p;
+    return -1;
+}
+
 // ---- Public API ----
 
 void WFC_Init(WFCData *wfc, const uint8_t *sample, int sample_w, int sample_h) {
@@ -111,8 +117,21 @@ int WFC_GenerateColumn(const WFCData *wfc, int height,
     for (int r = 0; r < height; r++) {
         int chosen = weighted_pick(wfc, candidates[r]);
         if (chosen < 0) {
-            // Contradiction: fall back to any floor pattern, or just pattern 0
-            chosen = WFC_AnyFloorPattern(wfc);
+            uint8_t relaxed[WFC_MAX_PAT / 8];
+            memset(relaxed, 0xFF, WFC_MAX_PAT / 8);
+            mask_valid(relaxed, wfc->pattern_count);
+
+            if (left_pats[r] >= 0)
+                for (int i = 0; i < WFC_MAX_PAT / 8; i++)
+                    relaxed[i] &= wfc->adj[left_pats[r]][WFC_DIR_RIGHT][i];
+
+            if (r > 0)
+                for (int i = 0; i < WFC_MAX_PAT / 8; i++)
+                    relaxed[i] &= wfc->adj[out_pats[r - 1]][WFC_DIR_DOWN][i];
+
+            chosen = weighted_pick(wfc, relaxed);
+            if (chosen < 0) chosen = first_valid(wfc, relaxed);
+            if (chosen < 0) chosen = WFC_AnyRoadPattern(wfc);
             contradictions++;
         }
         out_pats[r] = chosen;
@@ -145,7 +164,21 @@ int WFC_GenerateRow(const WFCData *wfc, int width,
     for (int c = 0; c < width; c++) {
         int chosen = weighted_pick(wfc, candidates[c]);
         if (chosen < 0) {
-            chosen = WFC_AnyFloorPattern(wfc);
+            uint8_t relaxed[WFC_MAX_PAT / 8];
+            memset(relaxed, 0xFF, WFC_MAX_PAT / 8);
+            mask_valid(relaxed, wfc->pattern_count);
+
+            if (top_pats[c] >= 0)
+                for (int i = 0; i < WFC_MAX_PAT / 8; i++)
+                    relaxed[i] &= wfc->adj[top_pats[c]][WFC_DIR_DOWN][i];
+
+            if (c > 0)
+                for (int i = 0; i < WFC_MAX_PAT / 8; i++)
+                    relaxed[i] &= wfc->adj[out_pats[c - 1]][WFC_DIR_RIGHT][i];
+
+            chosen = weighted_pick(wfc, relaxed);
+            if (chosen < 0) chosen = first_valid(wfc, relaxed);
+            if (chosen < 0) chosen = WFC_AnyRoadPattern(wfc);
             contradictions++;
         }
         out_pats[c] = chosen;
@@ -165,19 +198,34 @@ int WFC_CenterIsOrb(const WFCData *wfc, int pat_idx) {
     return wfc->patterns[pat_idx].data[WFC_N / 2][WFC_N / 2] == 2;
 }
 
-// Treat both floor (0) and orb (2) as walkable — only wall (1) blocks movement.
-int WFC_HasFloorPattern(const WFCData *wfc) {
+int WFC_HasRoadPattern(const WFCData *wfc) {
     for (int p = 0; p < wfc->pattern_count; p++)
-        if (wfc->patterns[p].data[WFC_N / 2][WFC_N / 2] != 1) return 1;
+        if (wfc->patterns[p].data[WFC_N / 2][WFC_N / 2] != 0) return 1;
+    return 0;
+}
+
+int WFC_AnyRoadPattern(const WFCData *wfc) {
+    for (int p = 0; p < wfc->pattern_count; p++)
+        if (wfc->patterns[p].data[WFC_N / 2][WFC_N / 2] != 0) return p;
+    return 0;
+}
+
+int WFC_HasFloorPattern(const WFCData *wfc) {
+    for (int p = 0; p < wfc->pattern_count; p++) {
+        int center = wfc->patterns[p].data[WFC_N / 2][WFC_N / 2];
+        if (center != 1) return 1;
+    }
     return 0;
 }
 
 int WFC_AnyFloorPattern(const WFCData *wfc) {
-    // Prefer true floor (0) first
     for (int p = 0; p < wfc->pattern_count; p++)
         if (wfc->patterns[p].data[WFC_N / 2][WFC_N / 2] == 0) return p;
-    // Fall back to orb (also walkable)
-    for (int p = 0; p < wfc->pattern_count; p++)
-        if (wfc->patterns[p].data[WFC_N / 2][WFC_N / 2] == 2) return p;
+
+    for (int p = 0; p < wfc->pattern_count; p++) {
+        int center = wfc->patterns[p].data[WFC_N / 2][WFC_N / 2];
+        if (center != 1) return p;
+    }
+
     return 0;
 }

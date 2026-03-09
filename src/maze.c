@@ -7,10 +7,47 @@
 // ---- Internal: set one cell from a pattern index ----
 
 static void set_cell(MazeBuffer *mb, int r, int c, int pat) {
-    int center = WFC_CenterPixel(mb->wfc, pat);
+    uint8_t tile_type = (uint8_t)WFC_CenterPixel(mb->wfc, pat);
+    if (!RoadTile_IsValid(tile_type)) tile_type = ROAD_TILE_NONE;
     mb->cells[r][c].pat_idx = (int16_t)pat;
-    mb->cells[r][c].is_wall = (uint8_t)(center == 1);  // only wall (1) blocks; orb (2) is walkable
-    mb->cells[r][c].has_orb = (uint8_t)(center == 2);
+    mb->cells[r][c].tile_type = tile_type;
+    mb->cells[r][c].conn_mask = RoadTile_ConnMask(tile_type);
+    mb->cells[r][c].has_orb = 0;
+}
+
+static void draw_road_tile_world(int x, int y, int size, uint8_t tile_type) {
+    Color grass = (Color){30, 110, 40, 255};
+    Color road = (Color){52, 52, 52, 255};
+    Color edge = (Color){24, 24, 24, 255};
+
+    DrawRectangle(x, y, size, size, grass);
+
+    if (RoadTile_IsFull(tile_type)) {
+        DrawRectangle(x, y, size, size, road);
+        DrawRectangleLinesEx((Rectangle){(float)x, (float)y, (float)size, (float)size}, 1.0f, edge);
+        return;
+    }
+
+    uint8_t mask = RoadTile_ConnMask(tile_type);
+    if (mask == 0) {
+        DrawRectangleLinesEx((Rectangle){(float)x, (float)y, (float)size, (float)size}, 1.0f, edge);
+        return;
+    }
+
+    int half = size / 2;
+    int lane = size / 3;
+    int lane_half = lane / 2;
+    int cx = x + half;
+    int cy = y + half;
+
+    DrawRectangle(cx - lane_half, cy - lane_half, lane, lane, road);
+
+    if (mask & ROAD_CONN_N) DrawRectangle(cx - lane_half, y, lane, half, road);
+    if (mask & ROAD_CONN_S) DrawRectangle(cx - lane_half, cy, lane, half, road);
+    if (mask & ROAD_CONN_W) DrawRectangle(x, cy - lane_half, half, lane, road);
+    if (mask & ROAD_CONN_E) DrawRectangle(cx, cy - lane_half, half, lane, road);
+
+    DrawRectangleLinesEx((Rectangle){(float)x, (float)y, (float)size, (float)size}, 1.0f, edge);
 }
 
 // ---- WFC generation helpers ----
@@ -96,12 +133,12 @@ void Maze_Init(MazeBuffer *mb, WFCData *wfc, float player_x, float player_y) {
     for (int row = 0; row < BUF_H; row++)
         gen_row(mb, row);
 
-    // Guarantee the player's spawn tile is a floor so they don't start inside a wall.
+    // Guarantee the player's spawn tile is drivable road.
     int cr = BUF_H / 2;
     int cc = BUF_W / 2;
-    if (mb->cells[cr][cc].is_wall) {
-        int floor_pat = WFC_AnyFloorPattern(wfc);
-        set_cell(mb, cr, cc, floor_pat);
+    if (!RoadTile_IsDrivable(mb->cells[cr][cc].tile_type)) {
+        int road_pat = WFC_AnyRoadPattern(wfc);
+        set_cell(mb, cr, cc, road_pat);
     }
 }
 
@@ -128,6 +165,8 @@ void Maze_Update(MazeBuffer *mb, float player_world_x, float player_world_y) {
 }
 
 void Maze_Render(const MazeBuffer *mb, float camera_x, float camera_y) {
+    DrawRectangle(0, 0, SCREEN_W, SCREEN_H, (Color){30, 110, 40, 255});
+
     // Draw all tiles
     for (int r = 0; r < BUF_H; r++) {
         for (int c = 0; c < BUF_W; c++) {
@@ -135,24 +174,7 @@ void Maze_Render(const MazeBuffer *mb, float camera_x, float camera_y) {
             float sy = (float)(mb->origin_y + r) * TILE_SIZE - camera_y;
             if (sx > SCREEN_W || sx < -(float)TILE_SIZE) continue;
             if (sy > SCREEN_H || sy < -(float)TILE_SIZE) continue;
-            Color col = mb->cells[r][c].is_wall ? BLACK : RAYWHITE;
-            DrawRectangle((int)sx, (int)sy, TILE_SIZE, TILE_SIZE, col);
-        }
-    }
-
-    // Draw orbs on top of tiles, before the vision ring clips them
-    static const Color ORB_COLOR = { 50, 220, 50, 255 };
-    for (int r = 0; r < BUF_H; r++) {
-        for (int c = 0; c < BUF_W; c++) {
-            if (!mb->cells[r][c].has_orb) continue;
-            float sx = (float)(mb->origin_x + c) * TILE_SIZE - camera_x;
-            float sy = (float)(mb->origin_y + r) * TILE_SIZE - camera_y;
-            if (sx > SCREEN_W || sx < -(float)TILE_SIZE) continue;
-            if (sy > SCREEN_H || sy < -(float)TILE_SIZE) continue;
-            float cx = sx + TILE_SIZE / 2.0f;
-            float cy = sy + TILE_SIZE / 2.0f;
-            DrawCircle((int)cx, (int)cy, 6, ORB_COLOR);
-            DrawCircleLines((int)cx, (int)cy, 7, (Color){180, 255, 180, 160});
+            draw_road_tile_world((int)sx, (int)sy, TILE_SIZE, mb->cells[r][c].tile_type);
         }
     }
 
@@ -166,16 +188,47 @@ int Maze_IsWall(const MazeBuffer *mb, int tile_x, int tile_y) {
     int c = tile_x - mb->origin_x;
     int r = tile_y - mb->origin_y;
     if (c < 0 || c >= BUF_W || r < 0 || r >= BUF_H) return 1;
-    return mb->cells[r][c].is_wall;
+    return !RoadTile_IsDrivable(mb->cells[r][c].tile_type);
+}
+
+int Maze_IsBlockedAt(const MazeBuffer *mb, float world_x, float world_y) {
+    int tile_x = (int)floorf(world_x / TILE_SIZE);
+    int tile_y = (int)floorf(world_y / TILE_SIZE);
+
+    int c = tile_x - mb->origin_x;
+    int r = tile_y - mb->origin_y;
+    if (c < 0 || c >= BUF_W || r < 0 || r >= BUF_H) return 1;
+
+    const TileCell *cell = &mb->cells[r][c];
+    if (!RoadTile_IsDrivable(cell->tile_type)) return 1;
+    if (RoadTile_IsFull(cell->tile_type)) return 0;
+
+    float local_x = world_x - tile_x * TILE_SIZE;
+    float local_y = world_y - tile_y * TILE_SIZE;
+
+    float half = TILE_SIZE * 0.5f;
+    float lane_half = TILE_SIZE * 0.38f;
+    float min_lane = half - lane_half;
+    float max_lane = half + lane_half;
+
+    int in_center = (local_x >= min_lane && local_x <= max_lane &&
+                     local_y >= min_lane && local_y <= max_lane);
+    if (in_center) return 0;
+
+    uint8_t mask = cell->conn_mask;
+    if ((mask & ROAD_CONN_N) && local_x >= min_lane && local_x <= max_lane && local_y >= 0.0f && local_y <= half) return 0;
+    if ((mask & ROAD_CONN_S) && local_x >= min_lane && local_x <= max_lane && local_y >= half && local_y <= TILE_SIZE) return 0;
+    if ((mask & ROAD_CONN_W) && local_y >= min_lane && local_y <= max_lane && local_x >= 0.0f && local_x <= half) return 0;
+    if ((mask & ROAD_CONN_E) && local_y >= min_lane && local_y <= max_lane && local_x >= half && local_x <= TILE_SIZE) return 0;
+
+    return 1;
 }
 
 int Maze_TryCollectOrb(MazeBuffer *mb, int tile_x, int tile_y) {
-    int c = tile_x - mb->origin_x;
-    int r = tile_y - mb->origin_y;
-    if (c < 0 || c >= BUF_W || r < 0 || r >= BUF_H) return 0;
-    if (!mb->cells[r][c].has_orb) return 0;
-    mb->cells[r][c].has_orb = 0;
-    return 1;
+    (void)mb;
+    (void)tile_x;
+    (void)tile_y;
+    return 0;
 }
 
 void Maze_GetStartPos(const MazeBuffer *mb, float *out_x, float *out_y) {

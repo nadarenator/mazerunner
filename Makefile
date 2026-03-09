@@ -1,6 +1,7 @@
 SHELL  = /bin/bash
 CC     = gcc
 EMCC   = emcc
+UNAME_S := $(shell uname -s)
 
 RAYLIB_SRC     = lib/raylib/src
 RAYLIB_LIB     = lib/raylib/build/raylib/libraylib.a
@@ -9,7 +10,12 @@ RAYLIB_LIB_WEB = lib/raylib/build_web/raylib/libraylib.a
 SRCS = src/main.c src/wfc.c src/draw_tool.c src/maze.c src/player.c
 
 CFLAGS   = -Wall -Wextra -O2 -I$(RAYLIB_SRC) -Isrc
+
+ifeq ($(UNAME_S),Darwin)
+LDFLAGS  = $(RAYLIB_LIB) -lm -lpthread -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo
+else
 LDFLAGS  = $(RAYLIB_LIB) -lm -ldl -lpthread -lGL -lX11 -lXrandr -lXinerama -lXcursor -lXi
+endif
 
 WASM_CFLAGS  = -O2 -I$(RAYLIB_SRC) -Isrc -DPLATFORM_WEB -s USE_GLFW=3
 WASM_LDFLAGS = $(RAYLIB_LIB_WEB) -s USE_GLFW=3 -s ASYNCIFY \

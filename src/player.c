@@ -14,9 +14,7 @@ static int collides(const MazeBuffer *mb, float px, float py) {
         { px,     py     },
     };
     for (int i = 0; i < 5; i++) {
-        int tx = (int)floorf(pts[i][0] / TILE_SIZE);
-        int ty = (int)floorf(pts[i][1] / TILE_SIZE);
-        if (Maze_IsWall(mb, tx, ty)) return 1;
+        if (Maze_IsBlockedAt(mb, pts[i][0], pts[i][1])) return 1;
     }
     return 0;
 }
@@ -51,9 +49,22 @@ void Player_Render(const Player *p, float camera_x, float camera_y) {
     // Player is always at screen center by camera definition
     float sx = p->x - camera_x;
     float sy = p->y - camera_y;
-    DrawCircle((int)sx, (int)sy, PLAYER_RADIUS, BLUE);
-    // Small highlight to make it pop against black background
-    DrawCircleLines((int)sx, (int)sy, PLAYER_RADIUS + 1, (Color){100, 100, 255, 180});
+
+    int body_w = 16;
+    int body_h = 24;
+    int bx = (int)(sx - body_w / 2);
+    int by = (int)(sy - body_h / 2);
+
+    DrawRectangleRounded((Rectangle){(float)bx, (float)by, (float)body_w, (float)body_h}, 0.25f, 4, (Color){30, 120, 220, 255});
+    DrawRectangleRoundedLines((Rectangle){(float)bx, (float)by, (float)body_w, (float)body_h}, 0.25f, 4, (Color){180, 220, 255, 190});
+
+    DrawRectangle(bx + 3, by + 5, body_w - 6, 6, (Color){170, 220, 255, 220});
+    DrawRectangle(bx + 3, by + body_h - 11, body_w - 6, 6, (Color){170, 220, 255, 220});
+
+    DrawRectangle(bx - 2, by + 3, 3, 5, DARKGRAY);
+    DrawRectangle(bx + body_w - 1, by + 3, 3, 5, DARKGRAY);
+    DrawRectangle(bx - 2, by + body_h - 8, 3, 5, DARKGRAY);
+    DrawRectangle(bx + body_w - 1, by + body_h - 8, 3, 5, DARKGRAY);
 }
 
 float Player_CameraX(const Player *p) { return p->x - SCREEN_W / 2.0f; }

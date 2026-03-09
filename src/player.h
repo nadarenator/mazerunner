@@ -2,7 +2,7 @@
 #include "maze.h"
 
 #define PLAYER_SPEED   200.0f   // pixels per second
-#define PLAYER_RADIUS   10.0f   // collision/render radius
+#define PLAYER_RADIUS    8.0f   // collision radius
 
 typedef struct {
     float x, y;   // world pixel position (center)

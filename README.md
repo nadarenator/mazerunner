@@ -35,7 +35,7 @@ cd ~/emsdk && ./emsdk install latest && ./emsdk activate latest
 source ~/emsdk/emsdk_env.sh
 
 # Optional: add to shell profile so you don't need to source it manually
-echo 'source ~/emsdk/emsdk_env.sh' >> ~/.bashrc
+echo 'source ~/emsdk/emsdk_env.sh' >> ~/.zshrc
 ```
 
 ### 3. Raylib (built inside the project, not committed)

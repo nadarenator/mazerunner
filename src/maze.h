@@ -1,5 +1,6 @@
 #pragma once
 #include "wfc.h"
+#include "road_tiles.h"
 #include <stdint.h>
 
 #define TILE_SIZE      32
@@ -15,9 +16,10 @@
 #define VISION_RADIUS  280.0f
 
 typedef struct {
-    int16_t pat_idx;   // WFC pattern index
-    uint8_t is_wall;   // 1=wall, 0=walkable (floor or orb)
-    uint8_t has_orb;   // 1=uncollected orb on this tile, 0=none
+    int16_t pat_idx;      // WFC pattern index
+    uint8_t tile_type;    // ROAD_TILE_*
+    uint8_t conn_mask;    // ROAD_CONN_* bitmask
+    uint8_t has_orb;      // legacy field (unused in driving mode)
 } TileCell;
 
 typedef struct {
@@ -39,6 +41,9 @@ void Maze_Render(const MazeBuffer *mb, float camera_x, float camera_y);
 
 // 1 if the world tile is a wall (or out of buffer bounds).
 int  Maze_IsWall(const MazeBuffer *mb, int tile_x, int tile_y);
+
+// 1 if world pixel point is blocked by road boundaries/off-road.
+int  Maze_IsBlockedAt(const MazeBuffer *mb, float world_x, float world_y);
 
 // If the tile at (tile_x, tile_y) has an uncollected orb, clear it and return 1.
 // Returns 0 if no orb present or tile is out of buffer bounds.

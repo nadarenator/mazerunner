@@ -44,10 +44,15 @@ int WFC_CenterPixel(const WFCData *wfc, int pat_idx);
 // Return 1 if the center of this pattern is an orb spawn (value 2).
 int WFC_CenterIsOrb(const WFCData *wfc, int pat_idx);
 
-// Return 1 if at least one walkable (non-wall) pattern exists.
-// Both floor (0) and orb (2) centres count as walkable.
+// Return 1 if at least one road-center pattern exists.
+int WFC_HasRoadPattern(const WFCData *wfc);
+
+// Return index of the first road-center (1) pattern; falls back to pattern 0.
+int WFC_AnyRoadPattern(const WFCData *wfc);
+
+// Legacy helpers retained for compatibility with older code.
+// A "floor" now means "road" in driving mode.
 int WFC_HasFloorPattern(const WFCData *wfc);
 
-// Return index of the first floor-centre (0) pattern; falls back to orb (2),
-// then pattern 0 as absolute last resort.
+// Return index of any valid drivable pattern.
 int WFC_AnyFloorPattern(const WFCData *wfc);
