@@ -151,10 +151,16 @@ void Maze_RenderTiles(const MazeBuffer *mb, float camera_x, float camera_y) {
 
             if (dist > VISION_RADIUS) continue;  // hidden by black ring — skip
 
-            Color col = mb->cells[r][c].is_wall ? BLACK : RAYWHITE;
+            Color col = mb->cells[r][c].is_wall
+                ? (Color){55, 48, 42, 255}   // stone wall
+                : (Color){28, 24, 20, 255};  // dark floor
 
             if (dist <= fringe_inner) {
                 DrawRectangle((int)sx, (int)sy, TILE_SIZE, TILE_SIZE, col);
+                if (mb->cells[r][c].is_wall) {
+                    DrawRectangle((int)sx, (int)sy, TILE_SIZE, 2, (Color){85, 74, 63, 255});
+                    DrawRectangle((int)sx, (int)sy, 2, TILE_SIZE, (Color){85, 74, 63, 255});
+                }
             } else {
                 float t      = (VISION_RADIUS - dist) / FRINGE_BAND;  // 0 at edge, 1 inside
                 float squish = cosf((1.0f - t) * (PI * 0.5f));
@@ -193,19 +199,25 @@ void Maze_RenderTiles(const MazeBuffer *mb, float camera_x, float camera_y) {
                 alpha = (uint8_t)(t * 255.0f);
             }
 
-            Color orb_col  = (Color){ 50, 220, 50, alpha };
-            Color ring_col = (Color){ 180, 255, 180, (uint8_t)((160 * (int)alpha) / 255) };
-            DrawCircle((int)tile_cx, (int)tile_cy, 6, orb_col);
-            DrawCircleLines((int)tile_cx, (int)tile_cy, 7, ring_col);
+            float pulse  = sinf(GetTime() * 3.0f);
+            float radius = 6.0f + pulse * 2.0f;
+            float ring_r = radius + 2.0f;
+            Color orb_col  = (Color){100, 200, 255, alpha};
+            Color ring_col = (Color){180, 230, 255, (uint8_t)((160 * (int)alpha) / 255)};
+            DrawCircle((int)tile_cx, (int)tile_cy, (int)radius, orb_col);
+            DrawCircleLines((int)tile_cx, (int)tile_cy, (int)ring_r, ring_col);
         }
     }
 }
 
 void Maze_RenderVision(void) {
-    // Black ring that masks everything outside the circular torch viewport.
     Vector2 center = { SCREEN_W / 2.0f, SCREEN_H / 2.0f };
     float outer = (float)(SCREEN_W + SCREEN_H);
-    DrawRing(center, VISION_RADIUS, outer, 0.0f, 360.0f, 128, BLACK);
+    // Two sine waves at coprime frequencies for organic torch flicker
+    float flicker = sinf(GetTime() * 7.3f) * 5.0f
+                  + sinf(GetTime() * 13.1f) * 3.0f;
+    float vis_r = VISION_RADIUS + flicker;
+    DrawRing(center, vis_r, outer, 0.0f, 360.0f, 128, BLACK);
 }
 
 void Maze_Render(const MazeBuffer *mb, float camera_x, float camera_y) {

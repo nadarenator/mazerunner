@@ -129,23 +129,29 @@ void DrawTool_Update(DrawTool *dt) {
 
 void DrawTool_Render(const DrawTool *dt) {
     // Canvas background
-    DrawRectangle(CANVAS_ORIGIN_X, CANVAS_ORIGIN_Y, CANVAS_W_PX, CANVAS_H_PX, RAYWHITE);
+    DrawRectangle(CANVAS_ORIGIN_X, CANVAS_ORIGIN_Y, CANVAS_W_PX, CANVAS_H_PX,
+                  (Color){28, 24, 20, 255});
 
     // Draw pixels
-    static const Color ORB_COLOR   = { 50,  200, 50,  255 };
-    static const Color ENEMY_COLOR = { 220, 40,  40,  255 };
+    static const Color FLOOR_COLOR = { 28,  24,  20, 255 };
+    static const Color WALL_COLOR  = { 55,  48,  42, 255 };
+    static const Color BEVEL_COLOR = { 85,  74,  63, 255 };
+    static const Color ORB_COLOR   = {100, 200, 255, 255 };
+    static const Color ENEMY_COLOR = {160,  20,  20, 255 };
     for (int y = 0; y < CANVAS_SIZE; y++) {
         for (int x = 0; x < CANVAS_SIZE; x++) {
             int px = CANVAS_ORIGIN_X + x * CELL_PIXELS;
             int py = CANVAS_ORIGIN_Y + y * CELL_PIXELS;
             if (dt->pixels[y][x] == CANVAS_VAL_WALL) {
-                DrawRectangle(px, py, CELL_PIXELS, CELL_PIXELS, BLACK);
+                DrawRectangle(px, py, CELL_PIXELS, CELL_PIXELS, WALL_COLOR);
+                DrawRectangle(px, py, CELL_PIXELS, 2, BEVEL_COLOR);
+                DrawRectangle(px, py, 2, CELL_PIXELS, BEVEL_COLOR);
             } else if (dt->pixels[y][x] == CANVAS_VAL_ORB) {
-                DrawRectangle(px, py, CELL_PIXELS, CELL_PIXELS, RAYWHITE);
+                DrawRectangle(px, py, CELL_PIXELS, CELL_PIXELS, FLOOR_COLOR);
                 DrawCircle(px + CELL_PIXELS / 2, py + CELL_PIXELS / 2,
                            CELL_PIXELS / 2 - 4, ORB_COLOR);
             } else if (dt->pixels[y][x] == CANVAS_VAL_ENEMY) {
-                DrawRectangle(px, py, CELL_PIXELS, CELL_PIXELS, RAYWHITE);
+                DrawRectangle(px, py, CELL_PIXELS, CELL_PIXELS, FLOOR_COLOR);
                 DrawCircle(px + CELL_PIXELS / 2, py + CELL_PIXELS / 2,
                            CELL_PIXELS / 2 - 4, ENEMY_COLOR);
             }
@@ -153,7 +159,7 @@ void DrawTool_Render(const DrawTool *dt) {
     }
 
     // Grid overlay
-    Color grid_color = (Color){ 180, 180, 180, 100 };
+    Color grid_color = (Color){ 50, 44, 38, 180 };
     for (int i = 0; i <= CANVAS_SIZE; i++) {
         int x = CANVAS_ORIGIN_X + i * CELL_PIXELS;
         int y = CANVAS_ORIGIN_Y + i * CELL_PIXELS;
@@ -162,10 +168,11 @@ void DrawTool_Render(const DrawTool *dt) {
     }
 
     // Canvas border
-    DrawRectangleLines(CANVAS_ORIGIN_X, CANVAS_ORIGIN_Y, CANVAS_W_PX, CANVAS_H_PX, DARKGRAY);
+    DrawRectangleLinesEx((Rectangle){CANVAS_ORIGIN_X, CANVAS_ORIGIN_Y, CANVAS_W_PX, CANVAS_H_PX},
+                         2, (Color){130, 100, 60, 255});
 
     // UI: Title
-    DrawText("Draw a Tile", UI_X, UI_Y_TITLE, 22, WHITE);
+    DrawText("Draw a Tile", UI_X, UI_Y_TITLE, 22, (Color){210, 170, 80, 255});
 
     // Instructions
     int iy = UI_Y_INST;
@@ -182,37 +189,41 @@ void DrawTool_Render(const DrawTool *dt) {
     int sw_wall_x  = UI_X;
     int sw_orb_x   = UI_X + SWATCH_SIZE + SWATCH_GAP;
     int sw_enemy_x = UI_X + 2 * (SWATCH_SIZE + SWATCH_GAP);
-    // Wall swatch (black)
-    DrawRectangle(sw_wall_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, BLACK);
-    DrawRectangleLines(sw_wall_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, GRAY);
-    // Orb swatch (green)
-    DrawRectangle(sw_orb_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, RAYWHITE);
+    // Wall swatch (stone)
+    DrawRectangle(sw_wall_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, (Color){55, 48, 42, 255});
+    DrawRectangle(sw_wall_x, SWATCH_Y, SWATCH_SIZE, 2, (Color){85, 74, 63, 255});
+    DrawRectangle(sw_wall_x, SWATCH_Y, 2, SWATCH_SIZE, (Color){85, 74, 63, 255});
+    DrawRectangleLines(sw_wall_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, (Color){80, 70, 55, 255});
+    // Orb swatch (ice blue)
+    DrawRectangle(sw_orb_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, (Color){28, 24, 20, 255});
     DrawCircle(sw_orb_x + SWATCH_SIZE / 2, SWATCH_Y + SWATCH_SIZE / 2,
                SWATCH_SIZE / 2 - 3, ORB_COLOR);
-    DrawRectangleLines(sw_orb_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, GRAY);
-    // Enemy swatch (red)
-    DrawRectangle(sw_enemy_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, RAYWHITE);
+    DrawRectangleLines(sw_orb_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, (Color){80, 70, 55, 255});
+    // Enemy swatch (crimson)
+    DrawRectangle(sw_enemy_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, (Color){28, 24, 20, 255});
     DrawCircle(sw_enemy_x + SWATCH_SIZE / 2, SWATCH_Y + SWATCH_SIZE / 2,
                SWATCH_SIZE / 2 - 3, ENEMY_COLOR);
-    DrawRectangleLines(sw_enemy_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, GRAY);
-    // Active highlight (bright white border around selected swatch)
+    DrawRectangleLines(sw_enemy_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, (Color){80, 70, 55, 255});
+    // Active highlight (amber border around selected swatch)
     int active_x = (dt->paint_mode == DT_PAINT_WALL) ? sw_wall_x :
                    (dt->paint_mode == DT_PAINT_ORB)  ? sw_orb_x  : sw_enemy_x;
-    DrawRectangleLinesEx((Rectangle){ active_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE }, 2, WHITE);
+    DrawRectangleLinesEx((Rectangle){ active_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE }, 2,
+                         (Color){230, 180, 60, 255});
     // Labels
-    DrawText("Wall  Orb  Enemy", UI_X, SWATCH_Y + SWATCH_SIZE + 4, 12, LIGHTGRAY);
+    DrawText("Wall  Orb  Enemy", UI_X, SWATCH_Y + SWATCH_SIZE + 4, 12,
+             (Color){160, 130, 80, 255});
 
     // Clear button
     Rectangle clear_btn = { BTN_CLEAR_X, BTN_CLEAR_Y, BTN_CLEAR_W, BTN_CLEAR_H };
-    DrawRectangleRec(clear_btn, DARKGRAY);
-    DrawRectangleLinesEx(clear_btn, 1, GRAY);
-    DrawText("Clear Canvas", BTN_CLEAR_X + 8, BTN_CLEAR_Y + 12, 16, WHITE);
+    DrawRectangleRec(clear_btn, (Color){35, 30, 28, 255});
+    DrawRectangleLinesEx(clear_btn, 2, (Color){80, 70, 60, 255});
+    DrawText("Clear Canvas", BTN_CLEAR_X + 8, BTN_CLEAR_Y + 12, 16, (Color){180, 150, 100, 255});
 
     // Start button
     Rectangle start_btn = { BTN_START_X, BTN_START_Y, BTN_START_W, BTN_START_H };
-    DrawRectangleRec(start_btn, GREEN);
-    DrawRectangleLinesEx(start_btn, 2, DARKGREEN);
-    DrawText("Start Exploring", BTN_START_X + 12, BTN_START_Y + 15, 18, BLACK);
+    DrawRectangleRec(start_btn, (Color){20, 80, 30, 255});
+    DrawRectangleLinesEx(start_btn, 2, (Color){40, 160, 60, 255});
+    DrawText("Start Exploring", BTN_START_X + 12, BTN_START_Y + 15, 18, WHITE);
 }
 
 int DrawTool_StartClicked(void) {

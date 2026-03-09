@@ -148,9 +148,9 @@ void EnemyList_Update(EnemyList *el, const MazeBuffer *mb,
 }
 
 void EnemyList_Render(const EnemyList *el, float camera_x, float camera_y) {
-    static const Color FILL_ACTIVE = { 220,  40,  40, 255 };
-    static const Color RING_ACTIVE = { 255, 120, 120, 200 };
-    static const Color FILL_FROZEN = { 255, 150, 190, 255 };
+    static const Color FILL_ACTIVE = { 160,  20,  20, 255 };
+    static const Color RING_ACTIVE = { 220,  60,  60, 200 };
+    static const Color FILL_FROZEN = { 255, 160, 200, 255 };
     static const Color RING_FROZEN = { 255, 200, 220, 200 };
 
     for (int i = 0; i < MAX_ENEMIES; i++) {

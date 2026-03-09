@@ -66,7 +66,7 @@ static void TransitionToPlay(void) {
 // Draw the hunger bar HUD. `hunger` is in [0,1].
 static void draw_hunger_bar(float hunger) {
     // Background (dark trough)
-    DrawRectangle(HB_X - 1, HB_Y - 1, HB_W + 2, HB_H + 2, (Color){60, 10, 10, 220});
+    DrawRectangle(HB_X - 2, HB_Y - 2, HB_W + 4, HB_H + 4, (Color){20, 10, 10, 230});
     // Filled portion: green → yellow → red depending on hunger level
     int fill_w = (int)(hunger * HB_W);
     Color bar_col;
@@ -81,10 +81,11 @@ static void draw_hunger_bar(float hunger) {
     }
     if (fill_w > 0)
         DrawRectangle(HB_X, HB_Y, fill_w, HB_H, bar_col);
-    // Border
-    DrawRectangleLines(HB_X - 1, HB_Y - 1, HB_W + 2, HB_H + 2, (Color){200, 200, 200, 180});
+    // Gold pixel border
+    DrawRectangleLinesEx((Rectangle){HB_X - 2, HB_Y - 2, HB_W + 4, HB_H + 4}, 2,
+                         (Color){180, 140, 60, 200});
     // Label
-    DrawText("HUNGER", HB_X, HB_Y - 18, 13, (Color){200, 200, 200, 180});
+    DrawText("HUNGER", HB_X, HB_Y - 18, 13, (Color){180, 140, 60, 180});
 }
 
 static void UpdateDrawFrame(void) {
@@ -155,10 +156,10 @@ static void UpdateDrawFrame(void) {
 
     // ---- Render ----
     BeginDrawing();
-    ClearBackground(BLACK);
+    ClearBackground((Color){8, 5, 15, 255});
 
     if (g_state == STATE_DRAW) {
-        ClearBackground((Color){30, 30, 30, 255});
+        ClearBackground((Color){15, 12, 22, 255});
         DrawTool_Render(&g_draw);
 
     } else if (g_state == STATE_PLAY) {
@@ -176,10 +177,10 @@ static void UpdateDrawFrame(void) {
         draw_hunger_bar(g_hunger);
 
     } else { // STATE_GAMEOVER
-        // Semi-dark overlay (background already cleared to black)
+        DrawRectangle(0, 0, SCREEN_W, SCREEN_H, (Color){0, 0, 0, 160});
         int cx = SCREEN_W / 2;
         int cy = SCREEN_H / 2;
-        DrawText("GAME OVER", cx - MeasureText("GAME OVER", 72) / 2, cy - 80, 72, RED);
+        DrawText("GAME OVER", cx - MeasureText("GAME OVER", 72) / 2, cy - 80, 72, (Color){180, 20, 20, 255});
         const char *reason = g_caught_by_enemy ? "You were caught by an enemy."
                                                : "You ran out of food.";
         DrawText(reason, cx - MeasureText(reason, 22) / 2, cy + 10, 22, LIGHTGRAY);

@@ -51,9 +51,8 @@ void Player_Render(const Player *p, float camera_x, float camera_y) {
     // Player is always at screen center by camera definition
     float sx = p->x - camera_x;
     float sy = p->y - camera_y;
-    DrawCircle((int)sx, (int)sy, PLAYER_RADIUS, BLUE);
-    // Small highlight to make it pop against black background
-    DrawCircleLines((int)sx, (int)sy, PLAYER_RADIUS + 1, (Color){100, 100, 255, 180});
+    DrawCircle((int)sx, (int)sy, PLAYER_RADIUS, (Color){230, 180, 60, 255});
+    DrawCircleLines((int)sx, (int)sy, PLAYER_RADIUS + 1, (Color){255, 220, 100, 180});
 }
 
 float Player_CameraX(const Player *p) { return p->x - SCREEN_W / 2.0f; }
