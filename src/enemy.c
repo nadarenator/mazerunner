@@ -148,22 +148,96 @@ void EnemyList_Update(EnemyList *el, const MazeBuffer *mb,
 }
 
 void EnemyList_Render(const EnemyList *el, float camera_x, float camera_y) {
-    static const Color FILL_ACTIVE = { 160,  20,  20, 255 };
-    static const Color RING_ACTIVE = { 220,  60,  60, 200 };
-    static const Color FILL_FROZEN = { 255, 160, 200, 255 };
-    static const Color RING_FROZEN = { 255, 200, 220, 200 };
+    float t = GetTime();
+
+    // Flame tongue offsets and heights (left, centre, right)
+    static const float flame_ox[3]  = { -6.0f,  0.0f,  6.0f };
+    static const float flame_h[3]   = { 13.0f, 17.0f, 13.0f };
+    static const float flame_ph[3]  = {  0.0f,  2.1f,  4.2f }; // phase offsets
+
+    // Icicle offsets and lengths (left, centre, right)
+    static const float ice_ox[3]    = { -5.0f,  0.0f,  5.0f };
+    static const float ice_len[3]   = {  9.0f, 13.0f,  9.0f };
 
     for (int i = 0; i < MAX_ENEMIES; i++) {
         if (!el->enemies[i].active) continue;
+
         float sx = el->enemies[i].x - camera_x;
         float sy = el->enemies[i].y - camera_y;
-        if (sx < -(ENEMY_RADIUS + 4) || sx > SCREEN_W + ENEMY_RADIUS + 4) continue;
-        if (sy < -(ENEMY_RADIUS + 4) || sy > SCREEN_H + ENEMY_RADIUS + 4) continue;
+        if (sx < -40 || sx > SCREEN_W + 40) continue;
+        if (sy < -40 || sy > SCREEN_H + 40) continue;
+
         int frozen = el->enemies[i].freeze_timer > 0.0f;
-        Color fill = frozen ? FILL_FROZEN : FILL_ACTIVE;
-        Color ring = frozen ? RING_FROZEN : RING_ACTIVE;
-        DrawCircle((int)sx, (int)sy, ENEMY_RADIUS, fill);
-        DrawCircleLines((int)sx, (int)sy, ENEMY_RADIUS + 1, ring);
+
+        if (!frozen) {
+            // ---- Flame glow (warm halo behind the skull) ----
+            float glow_r = 22.0f + sinf(t * 6.0f) * 3.0f;
+            DrawCircleGradient(
+                (int)sx, (int)(sy - 10),
+                glow_r,
+                (Color){230, 100, 20, 80},
+                (Color){0, 0, 0, 0}
+            );
+
+            // ---- Three flame tongues pointing up ----
+            // Vertex winding: bottom-left, bottom-right, tip (CCW in OpenGL NDC)
+            for (int j = 0; j < 3; j++) {
+                float wobble = sinf(t * 5.0f + flame_ph[j]) * 3.5f;
+                float bx = sx + flame_ox[j];
+                float by = sy - 9.0f;
+                Color col = (j == 1)
+                    ? (Color){255, 220, 40, 220}   // centre tongue: yellow
+                    : (Color){220,  80, 10, 200};  // outer tongues: orange
+                DrawTriangle(
+                    (Vector2){ bx - 4.0f,        by              },  // bottom-left
+                    (Vector2){ bx + 4.0f,        by              },  // bottom-right
+                    (Vector2){ bx + wobble, by - flame_h[j] },       // tip
+                    col
+                );
+            }
+        }
+
+        // ---- Skull base ----
+        Color skull_col = frozen
+            ? (Color){160, 205, 240, 255}
+            : (Color){220, 210, 190, 255};
+        DrawCircle((int)sx, (int)sy, 12, skull_col);
+
+        // ---- Eye sockets ----
+        Color eye_col = frozen
+            ? (Color){ 90, 150, 220, 255}
+            : (Color){ 25,  15,  10, 255};
+        DrawCircle((int)(sx - 4), (int)(sy - 2), 3, eye_col);
+        DrawCircle((int)(sx + 4), (int)(sy - 2), 3, eye_col);
+
+        // ---- Nose cavity ----
+        DrawCircle((int)sx, (int)(sy + 3), 2, eye_col);
+
+        if (frozen) {
+            // ---- Icicles growing downward over the freeze duration ----
+            float progress = 1.0f - el->enemies[i].freeze_timer / ENEMY_FREEZE_SEC;
+            Color ice = (Color){180, 230, 255, 220};
+            for (int j = 0; j < 3; j++) {
+                float ix  = sx + ice_ox[j];
+                float iy  = sy + 9.0f;
+                float tip = iy + ice_len[j] * progress;
+                // Vertex winding: tip, right-base, left-base (CCW in OpenGL NDC)
+                DrawTriangle(
+                    (Vector2){ ix,          tip },  // tip (bottom)
+                    (Vector2){ ix + 2.5f,   iy  },  // right base
+                    (Vector2){ ix - 2.5f,   iy  },  // left base
+                    ice
+                );
+            }
+        } else {
+            // ---- Teeth: 4 small rectangles along bottom of skull ----
+            Color teeth = (Color){235, 228, 212, 255};
+            for (int j = 0; j < 4; j++) {
+                int tx = (int)(sx) - 7 + j * 4;
+                int ty = (int)(sy) + 8;
+                DrawRectangle(tx, ty, 3, 4, teeth);
+            }
+        }
     }
 }
 

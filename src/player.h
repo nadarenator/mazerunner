@@ -5,7 +5,8 @@
 #define PLAYER_RADIUS   10.0f   // collision/render radius
 
 typedef struct {
-    float x, y;   // world pixel position (center)
+    float x, y;           // world pixel position (center)
+    float face_x, face_y; // unit vector of last movement direction
 } Player;
 
 void  Player_Init(Player *p, float start_x, float start_y);

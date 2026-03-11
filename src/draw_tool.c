@@ -136,7 +136,7 @@ void DrawTool_Render(const DrawTool *dt) {
     static const Color FLOOR_COLOR = { 28,  24,  20, 255 };
     static const Color WALL_COLOR  = { 55,  48,  42, 255 };
     static const Color BEVEL_COLOR = { 85,  74,  63, 255 };
-    static const Color ORB_COLOR   = {100, 200, 255, 255 };
+    static const Color ORB_COLOR   = { 70, 200,  90, 255 };
     static const Color ENEMY_COLOR = {160,  20,  20, 255 };
     for (int y = 0; y < CANVAS_SIZE; y++) {
         for (int x = 0; x < CANVAS_SIZE; x++) {
@@ -212,7 +212,7 @@ void DrawTool_Render(const DrawTool *dt) {
     DrawRectangle(sw_wall_x, SWATCH_Y, SWATCH_SIZE, 2, (Color){85, 74, 63, 255});
     DrawRectangle(sw_wall_x, SWATCH_Y, 2, SWATCH_SIZE, (Color){85, 74, 63, 255});
     DrawRectangleLines(sw_wall_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, (Color){80, 70, 55, 255});
-    // Orb swatch (ice blue)
+    // Orb swatch (green)
     DrawRectangle(sw_orb_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, (Color){28, 24, 20, 255});
     DrawCircle(sw_orb_x + SWATCH_SIZE / 2, SWATCH_Y + SWATCH_SIZE / 2,
                SWATCH_SIZE / 2 - 3, ORB_COLOR);

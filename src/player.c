@@ -22,8 +22,10 @@ static int collides(const MazeBuffer *mb, float px, float py) {
 }
 
 void Player_Init(Player *p, float start_x, float start_y) {
-    p->x = start_x;
-    p->y = start_y;
+    p->x      = start_x;
+    p->y      = start_y;
+    p->face_x =  0.0f;
+    p->face_y = -1.0f;  // default: facing up
 }
 
 void Player_Update(Player *p, const MazeBuffer *mb, float dt) {
@@ -40,6 +42,13 @@ void Player_Update(Player *p, const MazeBuffer *mb, float dt) {
         dy *= 0.70711f;
     }
 
+    // Track last movement direction for torch rendering
+    if (dx != 0.0f || dy != 0.0f) {
+        float len = sqrtf(dx * dx + dy * dy);
+        p->face_x = dx / len;
+        p->face_y = dy / len;
+    }
+
     // Axis-separated collision: try X, then Y independently
     if (!collides(mb, p->x + dx, p->y))
         p->x += dx;
@@ -48,11 +57,64 @@ void Player_Update(Player *p, const MazeBuffer *mb, float dt) {
 }
 
 void Player_Render(const Player *p, float camera_x, float camera_y) {
-    // Player is always at screen center by camera definition
+    float t  = GetTime();
     float sx = p->x - camera_x;
     float sy = p->y - camera_y;
-    DrawCircle((int)sx, (int)sy, PLAYER_RADIUS, (Color){230, 180, 60, 255});
-    DrawCircleLines((int)sx, (int)sy, PLAYER_RADIUS + 1, (Color){255, 220, 100, 180});
+
+    float fx = p->face_x;
+    float fy = p->face_y;
+    // Right-perpendicular to facing (90° CW)
+    float rx = -fy;
+    float ry =  fx;
+
+    // Torch: held forward and slightly to the right of the facing direction
+    float hand_x = sx + fx * 10.0f + rx * 7.0f;
+    float hand_y = sy + fy * 10.0f + ry * 7.0f;
+    float tip_x  = hand_x + fx * 7.0f;
+    float tip_y  = hand_y + fy * 7.0f;
+
+    // 1. Torch glow — warm ambient light pool behind everything
+    float glow = sinf(t * 7.3f) * 3.0f + sinf(t * 13.1f) * 2.0f;
+    DrawCircleGradient(
+        (int)tip_x, (int)tip_y,
+        24.0f + glow,
+        (Color){220, 140, 40, 55},
+        (Color){0, 0, 0, 0}
+    );
+
+    // 2. Cloak / body — dark charcoal circle
+    DrawCircle((int)sx, (int)sy, 14, (Color){55, 45, 38, 255});
+
+    // 3. Hood — slightly brighter, offset toward facing direction
+    DrawCircle(
+        (int)(sx + fx * 4.0f),
+        (int)(sy + fy * 4.0f),
+        8, (Color){85, 68, 52, 255}
+    );
+
+    // 4. Torch stick
+    DrawLineEx(
+        (Vector2){ hand_x, hand_y },
+        (Vector2){ tip_x,  tip_y  },
+        3.0f,
+        (Color){90, 55, 20, 255}
+    );
+
+    // 5. Torch flame — orange base + yellow core, pulsing and wobbling
+    float flicker = sinf(t * 9.0f);
+    float wob_x   = sinf(t *  7.3f) * 1.5f;
+    float wob_y   = sinf(t * 11.7f) * 1.5f;
+    DrawCircle(
+        (int)tip_x, (int)tip_y,
+        5.0f + flicker,
+        (Color){230, 100, 20, 230}
+    );
+    DrawCircle(
+        (int)(tip_x + wob_x),
+        (int)(tip_y + wob_y),
+        3.0f + flicker * 0.5f,
+        (Color){255, 220, 60, 255}
+    );
 }
 
 float Player_CameraX(const Player *p) { return p->x - SCREEN_W / 2.0f; }

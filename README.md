@@ -1,6 +1,6 @@
 # MazeRunner
 
-A procedurally generated infinite maze exploration game written in C with Raylib. You draw a tiny 8×8 pixel pattern, and a Wave Function Collapse algorithm turns it into an ever-shifting infinite maze you can explore in your browser. Your hunger increases constantly; find and collect the green orbs scattered through the maze to stay alive — and avoid the red enemies that spawn from the darkness and chase you down.
+A procedurally generated infinite maze exploration game written in C with Raylib. You draw a tiny 8×8 pixel pattern, and a Wave Function Collapse algorithm turns it into an ever-shifting infinite maze you can explore in your browser. You play as a hooded explorer carrying a flickering wooden torch. Your hunger increases constantly; find and collect the green orbs scattered through the maze to stay alive — and avoid the flaming skulls that spawn from the darkness and chase you down.
 
 ## How to Play
 
@@ -12,7 +12,7 @@ A procedurally generated infinite maze exploration game written in C with Raylib
 2. Press **Enter** or click **Start Exploring** to generate the maze.
 3. **Play mode** — Navigate with **WASD** or **arrow keys**. The maze extends infinitely; tiles that scroll offscreen are discarded and freshly regenerated if you return.
    - Your **hunger bar** (bottom of screen) drains continuously. Walk over a **green orb** to restore 50% hunger.
-   - **Red enemies** spawn from within your torch radius and chase you using shortest-path (BFS). They move at half your speed. Contact means **Game Over**.
+   - **Flaming skulls** spawn from within your torch radius and chase you using shortest-path (BFS). They materialise frozen (ice-blue with icicles) for 1 second, then ignite and begin chasing. They move at half your speed. Contact means **Game Over**.
    - Hunger hits zero → **Game Over**. Press **Enter**, **Space**, or **ESC** to try again.
 4. Press **ESC** at any time to return to draw mode and start fresh.
 

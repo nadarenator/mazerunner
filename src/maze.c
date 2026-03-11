@@ -212,8 +212,8 @@ void Maze_RenderTiles(const MazeBuffer *mb, float camera_x, float camera_y) {
             float pulse  = sinf(GetTime() * 3.0f);
             float radius = 6.0f + pulse * 2.0f;
             float ring_r = radius + 2.0f;
-            Color orb_col  = (Color){100, 200, 255, alpha};
-            Color ring_col = (Color){180, 230, 255, (uint8_t)((160 * (int)alpha) / 255)};
+            Color orb_col  = (Color){ 70, 200,  90, alpha};
+            Color ring_col = (Color){150, 235, 130, (uint8_t)((160 * (int)alpha) / 255)};
             DrawCircle((int)tile_cx, (int)tile_cy, (int)radius, orb_col);
             DrawCircleLines((int)tile_cx, (int)tile_cy, (int)ring_r, ring_col);
         }
