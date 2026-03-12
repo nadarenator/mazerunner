@@ -200,7 +200,7 @@ void DrawTool_Render(const DrawTool *dt) {
     DrawText("Left click  = paint mode", UI_X, iy,        16, (Color){200,200,200,255}); iy += 20;
     DrawText("Right click = erase", UI_X, iy,             16, (Color){200,200,200,255}); iy += 20;
     DrawText("G = cycle paint mode", UI_X, iy,            16, (Color){200,200,200,255}); iy += 30;
-    DrawText("ENTER or Start", UI_X, iy,                  16, YELLOW);    iy += 20;
+    DrawText("ENTER/SPACE or Start", UI_X, iy,             16, YELLOW);    iy += 20;
     DrawText("to explore.", UI_X, iy,                     16, YELLOW);
 
     // Paint-mode swatches
@@ -250,6 +250,6 @@ int DrawTool_StartClicked(void) {
         Rectangle btn = { BTN_START_X, BTN_START_Y, BTN_START_W, BTN_START_H };
         if (CheckCollisionPointRec(m, btn)) return 1;
     }
-    if (IsKeyPressed(KEY_ENTER)) return 1;
+    if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE)) return 1;
     return 0;
 }

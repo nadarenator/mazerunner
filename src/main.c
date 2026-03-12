@@ -14,7 +14,7 @@
 
 // Hunger constants
 #define HUNGER_MAX         1.0f
-#define HUNGER_DECAY_RATE  0.04f   // fraction lost per second; full bar lasts 25 s
+#define HUNGER_DECAY_RATE  0.1f    // fraction lost per second; full bar lasts 10 s
 
 // Hunger bar HUD geometry (centred at bottom of screen, inside vision circle)
 #define HB_W    300
