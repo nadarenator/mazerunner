@@ -53,6 +53,12 @@ void Maze_RenderVision(void);
 // Use this in tests that have no entities to interleave.
 void Maze_Render(const MazeBuffer *mb, float camera_x, float camera_y);
 
+// Renders only terrain (wall/floor tiles with bevel and mortar).
+// No orb circles, spike animation, vision radius culling, or fringe swivel.
+// Used by the draw-screen preview pane; camera semantics are identical to
+// Maze_RenderTiles — caller controls centering by what they pass in.
+void Maze_RenderTilesBasic(const MazeBuffer *mb, float camera_x, float camera_y);
+
 // 1 if the world tile is a wall (or out of buffer bounds).
 int  Maze_IsWall(const MazeBuffer *mb, int tile_x, int tile_y);
 

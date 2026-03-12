@@ -3,8 +3,8 @@
 
 #define CANVAS_SIZE     8     // tiny input tile for WFC (8x8 pixels)
 #define CELL_PIXELS     28    // screen pixels per canvas pixel (8*28 = 224px canvas)
-#define CANVAS_ORIGIN_X 40
-#define CANVAS_ORIGIN_Y 40
+#define CANVAS_ORIGIN_X 28
+#define CANVAS_ORIGIN_Y 150   // below title + swatches + labels
 
 // Pixel values stored in DrawTool::pixels
 #define CANVAS_VAL_FLOOR  0
@@ -22,6 +22,7 @@
 typedef struct {
     uint8_t pixels[CANVAS_SIZE][CANVAS_SIZE]; // 0=floor, 1=wall, 2=orb, 3=enemy, 4=spike
     uint8_t paint_mode;                        // DT_PAINT_WALL/ORB/ENEMY/SPIKE
+    uint8_t dirty;                             // set when pixels change; cleared by main.c
 } DrawTool;
 
 void DrawTool_Init(DrawTool *dt);

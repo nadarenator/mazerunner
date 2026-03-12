@@ -313,6 +313,35 @@ void Maze_Render(const MazeBuffer *mb, float camera_x, float camera_y) {
     Maze_RenderVision();
 }
 
+void Maze_RenderTilesBasic(const MazeBuffer *mb, float camera_x, float camera_y) {
+    for (int r = 0; r < BUF_H; r++) {
+        for (int c = 0; c < BUF_W; c++) {
+            float sx = (float)(mb->origin_x + c) * TILE_SIZE - camera_x;
+            float sy = (float)(mb->origin_y + r) * TILE_SIZE - camera_y;
+            if (sx > SCREEN_W || sx < -(float)TILE_SIZE) continue;
+            if (sy > SCREEN_H || sy < -(float)TILE_SIZE) continue;
+
+            Color col = mb->cells[r][c].is_wall
+                ? (Color){55, 48, 42, 255}
+                : (Color){28, 24, 20, 255};
+
+            DrawRectangle((int)sx, (int)sy, TILE_SIZE, TILE_SIZE, col);
+
+            if (mb->cells[r][c].is_wall) {
+                DrawRectangle((int)sx, (int)sy, TILE_SIZE, 2, (Color){85, 74, 63, 255});
+                DrawRectangle((int)sx, (int)sy, 2, TILE_SIZE, (Color){85, 74, 63, 255});
+                if (r + 1 < BUF_H && !mb->cells[r + 1][c].is_wall)
+                    DrawRectangle((int)sx, (int)sy + TILE_SIZE - 4, TILE_SIZE, 4,
+                                  (Color){120, 100, 78, 255});
+            } else {
+                Color mortar = {40, 35, 29, 255};
+                for (int line = 8; line < TILE_SIZE; line += 8)
+                    DrawRectangle((int)sx, (int)sy + line, TILE_SIZE, 1, mortar);
+            }
+        }
+    }
+}
+
 int Maze_IsWall(const MazeBuffer *mb, int tile_x, int tile_y) {
     int c = tile_x - mb->origin_x;
     int r = tile_y - mb->origin_y;
