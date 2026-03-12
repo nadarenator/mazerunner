@@ -69,10 +69,41 @@ void DrawTool_Clear(DrawTool *dt) {
 }
 
 void DrawTool_Randomize(DrawTool *dt) {
-    // Fill each cell with 50/50 wall/floor
+    // Fill each cell with 70% floor / 30% wall
     for (int y = 0; y < CANVAS_SIZE; y++)
         for (int x = 0; x < CANVAS_SIZE; x++)
             dt->pixels[y][x] = (rand() % 10 < 3) ? CANVAS_VAL_WALL : CANVAS_VAL_FLOOR;
+
+    // Trim any connected wall component larger than 5 cells down to 5
+    {
+        uint8_t visited[CANVAS_SIZE][CANVAS_SIZE] = {0};
+        int dx[8] = {0, 0, -1, 1, -1,  1, -1, 1};
+        int dy[8] = {-1, 1,  0, 0, -1, -1,  1, 1};
+        int qx[64], qy[64];
+        for (int sy = 0; sy < CANVAS_SIZE; sy++) {
+            for (int sx = 0; sx < CANVAS_SIZE; sx++) {
+                if (dt->pixels[sy][sx] != CANVAS_VAL_WALL || visited[sy][sx]) continue;
+                int head = 0, tail = 0;
+                qx[tail] = sx; qy[tail] = sy; tail++;
+                visited[sy][sx] = 1;
+                while (head < tail) {
+                    int cx = qx[head], cy = qy[head]; head++;
+                    for (int d = 0; d < 8; d++) {
+                        int nx = cx + dx[d], ny = cy + dy[d];
+                        if (nx >= 0 && nx < CANVAS_SIZE && ny >= 0 && ny < CANVAS_SIZE
+                                && !visited[ny][nx]
+                                && dt->pixels[ny][nx] == CANVAS_VAL_WALL) {
+                            visited[ny][nx] = 1;
+                            qx[tail] = nx; qy[tail] = ny; tail++;
+                        }
+                    }
+                }
+                // Convert cells beyond the 5th to floor
+                for (int i = 5; i < tail; i++)
+                    dt->pixels[qy[i]][qx[i]] = CANVAS_VAL_FLOOR;
+            }
+        }
+    }
 
     // Collect floor cells
     int fx[64], fy[64], n = 0;
