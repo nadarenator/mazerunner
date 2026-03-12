@@ -4,6 +4,7 @@
 #include "maze.h"
 #include "player.h"
 #include "enemy.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
@@ -33,6 +34,8 @@ static Player     g_player;
 static float      g_hunger;
 static EnemyList  g_enemies;
 static int        g_caught_by_enemy; // 1 = enemy caused game over, 0 = hunger
+static float      g_score_time;      // seconds survived this run
+static int        g_score_orbs;      // orbs collected this run
 
 static void TransitionToPlay(void) {
     // Build WFC from whatever the user drew
@@ -60,6 +63,8 @@ static void TransitionToPlay(void) {
 
     g_hunger = HUNGER_MAX;
     g_caught_by_enemy = 0;
+    g_score_time = 0.0f;
+    g_score_orbs = 0;
     g_state = STATE_PLAY;
 }
 
@@ -121,6 +126,9 @@ static void UpdateDrawFrame(void) {
         EnemyList_CullOutOfBounds(&g_enemies, &g_maze, g_player.x, g_player.y, VISION_RADIUS);
         EnemyList_Update(&g_enemies, &g_maze, g_player.x, g_player.y, dt);
 
+        // Score: time survived
+        g_score_time += dt;
+
         // Hunger decay
         g_hunger -= HUNGER_DECAY_RATE * dt;
         if (g_hunger < 0.0f) g_hunger = 0.0f;
@@ -131,6 +139,7 @@ static void UpdateDrawFrame(void) {
         if (Maze_TryCollectOrb(&g_maze, ptx, pty)) {
             g_hunger += 0.5f;
             if (g_hunger > HUNGER_MAX) g_hunger = HUNGER_MAX;
+            g_score_orbs++;
         }
 
         // Game over: caught by enemy
@@ -176,17 +185,33 @@ static void UpdateDrawFrame(void) {
         DrawFPS(SCREEN_W - 70, 10);
         draw_hunger_bar(g_hunger);
 
+        // Live score counters: time on left of hunger bar, orbs on right
+        char time_buf[32], orb_buf[32];
+        snprintf(time_buf, sizeof(time_buf), "%ds", (int)g_score_time);
+        snprintf(orb_buf,  sizeof(orb_buf),  "Orbs: %d", g_score_orbs);
+        int time_w = MeasureText(time_buf, 16);
+        DrawText(time_buf, HB_X - 2 - 8 - time_w, HB_Y, 16, (Color){200,190,140,220});
+        DrawText(orb_buf,  HB_X + HB_W + 2 + 8,   HB_Y, 16, (Color){70,200,90,200});
+
     } else { // STATE_GAMEOVER
         DrawRectangle(0, 0, SCREEN_W, SCREEN_H, (Color){0, 0, 0, 160});
         int cx = SCREEN_W / 2;
         int cy = SCREEN_H / 2;
-        DrawText("GAME OVER", cx - MeasureText("GAME OVER", 72) / 2, cy - 80, 72, (Color){180, 20, 20, 255});
+        DrawText("GAME OVER", cx - MeasureText("GAME OVER", 72) / 2, cy - 100, 72, (Color){180, 20, 20, 255});
         const char *reason = g_caught_by_enemy ? "You were caught by an enemy."
                                                : "You ran out of food.";
-        DrawText(reason, cx - MeasureText(reason, 22) / 2, cy + 10, 22, LIGHTGRAY);
+        DrawText(reason, cx - MeasureText(reason, 22) / 2, cy - 8, 22, LIGHTGRAY);
+
+        // Final score
+        char score_buf[64];
+        snprintf(score_buf, sizeof(score_buf), "Survived: %ds  |  Orbs: %d",
+                 (int)g_score_time, g_score_orbs);
+        DrawText(score_buf, cx - MeasureText(score_buf, 26) / 2, cy + 30, 26,
+                 (Color){200, 190, 140, 255});
+
         DrawText("Press ENTER, SPACE, or ESC to try again.",
                  cx - MeasureText("Press ENTER, SPACE, or ESC to try again.", 18) / 2,
-                 cy + 50, 18, (Color){200,200,200,200});
+                 cy + 76, 18, (Color){200,200,200,200});
     }
 
     EndDrawing();
