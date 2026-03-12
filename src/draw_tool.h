@@ -25,6 +25,7 @@ typedef struct {
 void DrawTool_Init(DrawTool *dt);
 void DrawTool_FillDefault(DrawTool *dt);
 void DrawTool_Clear(DrawTool *dt);
+void DrawTool_Randomize(DrawTool *dt);
 void DrawTool_Update(DrawTool *dt);
 void DrawTool_Render(const DrawTool *dt);
 

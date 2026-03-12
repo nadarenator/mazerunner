@@ -1,6 +1,7 @@
 #include "draw_tool.h"
 #include "raylib.h"
 #include <string.h>
+#include <stdlib.h>
 
 #define CANVAS_W_PX  (CANVAS_SIZE * CELL_PIXELS)
 #define CANVAS_H_PX  (CANVAS_SIZE * CELL_PIXELS)
@@ -13,6 +14,10 @@
 #define BTN_CLEAR_Y  320
 #define BTN_CLEAR_W  140
 #define BTN_CLEAR_H  40
+#define BTN_RAND_X   (BTN_CLEAR_X + BTN_CLEAR_W + 10)
+#define BTN_RAND_Y   BTN_CLEAR_Y
+#define BTN_RAND_W   40
+#define BTN_RAND_H   40
 #define BTN_START_X  UI_X
 #define BTN_START_Y  380
 #define BTN_START_W  200
@@ -26,7 +31,7 @@
 void DrawTool_Init(DrawTool *dt) {
     memset(dt->pixels, 0, sizeof(dt->pixels));
     dt->paint_mode = DT_PAINT_WALL;
-    DrawTool_FillDefault(dt);
+    DrawTool_Randomize(dt);
 }
 
 void DrawTool_FillDefault(DrawTool *dt) {
@@ -61,6 +66,32 @@ void DrawTool_FillDefault(DrawTool *dt) {
 void DrawTool_Clear(DrawTool *dt) {
     memset(dt->pixels, 0, sizeof(dt->pixels));
     // paint_mode is intentionally preserved across clear
+}
+
+void DrawTool_Randomize(DrawTool *dt) {
+    // Fill each cell with 50/50 wall/floor
+    for (int y = 0; y < CANVAS_SIZE; y++)
+        for (int x = 0; x < CANVAS_SIZE; x++)
+            dt->pixels[y][x] = (rand() % 10 < 3) ? CANVAS_VAL_WALL : CANVAS_VAL_FLOOR;
+
+    // Collect floor cells
+    int fx[64], fy[64], n = 0;
+    for (int y = 0; y < CANVAS_SIZE; y++)
+        for (int x = 0; x < CANVAS_SIZE; x++)
+            if (dt->pixels[y][x] == CANVAS_VAL_FLOOR)
+                { fx[n] = x; fy[n] = y; n++; }
+
+    // Need at least 2 floor cells for orb + enemy; fall back to default if not
+    if (n < 2) { DrawTool_FillDefault(dt); return; }
+
+    // Place exactly one orb on a random floor cell
+    int orb_i = rand() % n;
+    dt->pixels[fy[orb_i]][fx[orb_i]] = CANVAS_VAL_ORB;
+
+    // Place exactly one enemy on a different random floor cell
+    int enemy_i = rand() % (n - 1);
+    if (enemy_i >= orb_i) enemy_i++;
+    dt->pixels[fy[enemy_i]][fx[enemy_i]] = CANVAS_VAL_ENEMY;
 }
 
 // Returns 1 if placing an orb at (cx,cy) would violate the isolation rule
@@ -102,6 +133,9 @@ void DrawTool_Update(DrawTool *dt) {
         if (CheckCollisionPointRec(m, wall_swatch))  { dt->paint_mode = DT_PAINT_WALL;  return; }
         if (CheckCollisionPointRec(m, orb_swatch))   { dt->paint_mode = DT_PAINT_ORB;   return; }
         if (CheckCollisionPointRec(m, enemy_swatch)) { dt->paint_mode = DT_PAINT_ENEMY; return; }
+
+        Rectangle rand_btn = { BTN_RAND_X, BTN_RAND_Y, BTN_RAND_W, BTN_RAND_H };
+        if (CheckCollisionPointRec(m, rand_btn)) { DrawTool_Randomize(dt); return; }
     }
 
     if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) || IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
@@ -236,6 +270,22 @@ void DrawTool_Render(const DrawTool *dt) {
     DrawRectangleRec(clear_btn, (Color){35, 30, 28, 255});
     DrawRectangleLinesEx(clear_btn, 2, (Color){80, 70, 60, 255});
     DrawText("Clear Canvas", BTN_CLEAR_X + 8, BTN_CLEAR_Y + 12, 16, (Color){180, 150, 100, 255});
+
+    // Randomize (dice) button — square, sits right of Clear
+    Rectangle rand_btn = { BTN_RAND_X, BTN_RAND_Y, BTN_RAND_W, BTN_RAND_H };
+    DrawRectangleRec(rand_btn, (Color){30, 28, 50, 255});
+    DrawRectangleLinesEx(rand_btn, 2, (Color){100, 80, 160, 255});
+    // Draw a simple die face (4 pips in corners + 1 centre = 5-face)
+    {
+        int bx = BTN_RAND_X, by = BTN_RAND_Y, bw = BTN_RAND_W, bh = BTN_RAND_H;
+        int pad = 7, r = 3;
+        Color pip = (Color){200, 180, 255, 255};
+        DrawCircle(bx + pad,      by + pad,      r, pip); // top-left
+        DrawCircle(bx + bw - pad, by + pad,      r, pip); // top-right
+        DrawCircle(bx + bw/2,     by + bh/2,     r, pip); // centre
+        DrawCircle(bx + pad,      by + bh - pad, r, pip); // bottom-left
+        DrawCircle(bx + bw - pad, by + bh - pad, r, pip); // bottom-right
+    }
 
     // Start button
     Rectangle start_btn = { BTN_START_X, BTN_START_Y, BTN_START_W, BTN_START_H };
