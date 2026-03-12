@@ -1,5 +1,7 @@
 # MazeRunner
 
+**[Play it in your browser →](https://nadarenator.github.io/mazerunner/)**
+
 A procedurally generated infinite maze exploration game written in C with Raylib. You draw a tiny 8×8 pixel pattern, and a Wave Function Collapse algorithm turns it into an ever-shifting infinite maze you can explore in your browser. You play as a hooded explorer carrying a flickering wooden torch. Your hunger increases constantly; find and collect the green orbs scattered through the maze to stay alive — and avoid the flaming skulls that spawn from the darkness and chase you down. Watch out for spike traps hidden in the floor that periodically shoot up from their holes.
 
 ## How to Play

@@ -30,11 +30,21 @@
 
     function fitCanvas() {
       var scale = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
-      canvas.style.width  = Math.floor(1280 * scale) + 'px';
-      canvas.style.height = Math.floor(720  * scale) + 'px';
+      var w = Math.floor(1280 * scale) + 'px';
+      var h = Math.floor(720  * scale) + 'px';
+      if (canvas.style.width !== w || canvas.style.height !== h) {
+        canvas.style.width  = w;
+        canvas.style.height = h;
+      }
     }
     fitCanvas();
     window.addEventListener('resize', fitCanvas);
+
+    // Raylib's InitWindow() resets canvas CSS size after onRuntimeInitialized fires.
+    // Re-apply fitCanvas whenever that happens.
+    new MutationObserver(fitCanvas).observe(canvas, {
+      attributes: true, attributeFilter: ['style']
+    });
 
     var Module = {
       canvas: canvas,
