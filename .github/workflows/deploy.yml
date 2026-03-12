@@ -1,0 +1,73 @@
+name: Build and Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y build-essential cmake \
+            libgl1-mesa-dev libglu1-mesa-dev libx11-dev \
+            libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
+
+      - name: Cache emsdk
+        id: cache-emsdk
+        uses: actions/cache@v4
+        with:
+          path: ~/emsdk
+          key: emsdk-${{ runner.os }}-latest-v1
+
+      - name: Install emsdk
+        if: steps.cache-emsdk.outputs.cache-hit != 'true'
+        run: |
+          git clone https://github.com/emscripten-core/emsdk.git ~/emsdk
+          ~/emsdk/emsdk install latest
+          ~/emsdk/emsdk activate latest
+
+      - name: Cache raylib WASM build
+        id: cache-raylib
+        uses: actions/cache@v4
+        with:
+          path: lib/raylib
+          key: raylib-wasm-${{ runner.os }}-v1
+
+      - name: Build raylib for WASM
+        if: steps.cache-raylib.outputs.cache-hit != 'true'
+        run: |
+          source ~/emsdk/emsdk_env.sh
+          git clone --depth=1 https://github.com/raysan5/raylib.git lib/raylib
+          emcmake cmake -S lib/raylib -B lib/raylib/build_web \
+            -DPLATFORM=Web -DBUILD_SHARED_LIBS=OFF -DBUILD_EXAMPLES=OFF
+          cmake --build lib/raylib/build_web -j$(nproc)
+
+      - name: Build WASM
+        run: make web
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
