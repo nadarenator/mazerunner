@@ -43,13 +43,17 @@ static int orbs_have_adjacent_pair(const DrawTool *dt) {
 // We call DrawTool_Update instead by faking mouse state — not possible headlessly,
 // so we test the invariant by construction: manually place orbs and verify.
 static void test_headless(void) {
-    printf("=== Headless Test 1: Default pattern has no orbs ===\n");
+    printf("=== Headless Test 1: Init randomizes with exactly 1 orb, 1 enemy, 1 spike ===\n");
     DrawTool dt;
     DrawTool_Init(&dt);
-    int orbs = count_value(&dt, CANVAS_VAL_ORB);
-    int walls = count_value(&dt, CANVAS_VAL_WALL);
-    printf("  walls=%d  orbs=%d\n", walls, orbs);
-    if (orbs != 0) { printf("FAIL: default pattern should have no orbs\n"); return; }
+    int orbs   = count_value(&dt, CANVAS_VAL_ORB);
+    int enemies = count_value(&dt, CANVAS_VAL_ENEMY);
+    int spikes  = count_value(&dt, CANVAS_VAL_SPIKE);
+    int walls  = count_value(&dt, CANVAS_VAL_WALL);
+    printf("  walls=%d  orbs=%d  enemies=%d  spikes=%d\n", walls, orbs, enemies, spikes);
+    if (orbs != 1 || enemies != 1 || spikes != 1) {
+        printf("FAIL: expected exactly 1 orb, 1 enemy, 1 spike after Init\n"); return;
+    }
     printf("  PASS\n\n");
 
     printf("=== Headless Test 2: Manual orb placement respects isolation ===\n");

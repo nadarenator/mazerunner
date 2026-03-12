@@ -11,9 +11,10 @@ static const float FRINGE_BAND = 3.0f * TILE_SIZE;  // 96px swivel band inside v
 static void set_cell(MazeBuffer *mb, int r, int c, int pat) {
     int center = WFC_CenterPixel(mb->wfc, pat);
     mb->cells[r][c].pat_idx          = (int16_t)pat;
-    mb->cells[r][c].is_wall          = (uint8_t)(center == 1); // wall(1) blocks; orb(2)/enemy(3) walkable
+    mb->cells[r][c].is_wall          = (uint8_t)(center == 1); // wall(1) blocks; 2/3/4 walkable
     mb->cells[r][c].has_orb          = (uint8_t)(center == 2);
     mb->cells[r][c].has_enemy_spawn  = (uint8_t)(center == 3);
+    mb->cells[r][c].has_spike        = (uint8_t)(center == 4);
 }
 
 // ---- WFC generation helpers ----
@@ -130,6 +131,10 @@ void Maze_Update(MazeBuffer *mb, float player_world_x, float player_world_y) {
     while (dy < 0) { scroll_up(mb);    dy++; }
 }
 
+int Maze_IsSpikeUp(void) {
+    return fmodf(GetTime(), SPIKE_PERIOD) >= SPIKE_UP_START;
+}
+
 void Maze_RenderTiles(const MazeBuffer *mb, float camera_x, float camera_y) {
     float scx = SCREEN_W * 0.5f;
     float scy = SCREEN_H * 0.5f;
@@ -216,6 +221,79 @@ void Maze_RenderTiles(const MazeBuffer *mb, float camera_x, float camera_y) {
             Color ring_col = (Color){150, 235, 130, (uint8_t)((160 * (int)alpha) / 255)};
             DrawCircle((int)tile_cx, (int)tile_cy, (int)radius, orb_col);
             DrawCircleLines((int)tile_cx, (int)tile_cy, (int)ring_r, ring_col);
+        }
+    }
+
+    // Draw spike tiles: holes always, spikes when raised, amber warning before raise
+    // Hole positions within a TILE_SIZE cell: 3x3 grid at offsets 6, 16, 26
+    static const int SPIKE_OFFSETS[3] = { 6, 16, 26 };
+
+    float now   = GetTime();
+    float phase = fmodf(now, SPIKE_PERIOD);
+    int   spikes_up = (phase >= SPIKE_UP_START);
+    int   warning   = (!spikes_up && phase >= SPIKE_WARN_START);
+
+    for (int r = 0; r < BUF_H; r++) {
+        for (int c = 0; c < BUF_W; c++) {
+            if (!mb->cells[r][c].has_spike) continue;
+            float sx = (float)(mb->origin_x + c) * TILE_SIZE - camera_x;
+            float sy = (float)(mb->origin_y + r) * TILE_SIZE - camera_y;
+            if (sx > SCREEN_W || sx < -(float)TILE_SIZE) continue;
+            if (sy > SCREEN_H || sy < -(float)TILE_SIZE) continue;
+
+            float tile_cx = sx + TILE_SIZE * 0.5f;
+            float tile_cy = sy + TILE_SIZE * 0.5f;
+            float ddx = tile_cx - scx;
+            float ddy = tile_cy - scy;
+            float dist = sqrtf(ddx * ddx + ddy * ddy);
+            if (dist > VISION_RADIUS) continue;
+
+            uint8_t alpha = (dist <= fringe_inner)
+                ? 255
+                : (uint8_t)((VISION_RADIUS - dist) / FRINGE_BAND * 255.0f);
+
+            // Hole color: near-black normally, amber pulse during warning
+            Color hole_col;
+            if (warning) {
+                float pulse = 0.5f + 0.5f * sinf(now * 12.0f);  // fast flicker
+                hole_col = (Color){
+                    (uint8_t)(180 + 40 * pulse),
+                    (uint8_t)(60  + 20 * pulse),
+                    10, alpha
+                };
+            } else {
+                hole_col = (Color){10, 8, 5, alpha};
+            }
+
+            // Draw 9 holes in 3x3 grid
+            for (int ry = 0; ry < 3; ry++) {
+                for (int rx = 0; rx < 3; rx++) {
+                    int hx = (int)sx + SPIKE_OFFSETS[rx];
+                    int hy = (int)sy + SPIKE_OFFSETS[ry];
+                    DrawCircle(hx, hy, 2, hole_col);
+                }
+            }
+
+            // Draw spikes when raised
+            if (spikes_up) {
+                Color spike_col = (Color){155, 145, 125, alpha};
+                Color shadow_col = (Color){60, 55, 45, alpha};
+                for (int ry = 0; ry < 3; ry++) {
+                    for (int rx = 0; rx < 3; rx++) {
+                        int hx  = (int)sx + SPIKE_OFFSETS[rx];
+                        int hy  = (int)sy + SPIKE_OFFSETS[ry];
+                        int tip = hy - 10;
+                        // Filled spike triangle (CCW in screen space: tip, base-left, base-right)
+                        DrawTriangle(
+                            (Vector2){ hx,     tip },
+                            (Vector2){ hx - 2, hy  },
+                            (Vector2){ hx + 2, hy  },
+                            spike_col);
+                        // 1px shadow on right edge for depth
+                        DrawLine(hx, tip, hx + 2, hy, shadow_col);
+                    }
+                }
+            }
         }
     }
 }

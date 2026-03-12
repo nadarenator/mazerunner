@@ -112,8 +112,8 @@ void DrawTool_Randomize(DrawTool *dt) {
             if (dt->pixels[y][x] == CANVAS_VAL_FLOOR)
                 { fx[n] = x; fy[n] = y; n++; }
 
-    // Need at least 2 floor cells for orb + enemy; fall back to default if not
-    if (n < 2) { DrawTool_FillDefault(dt); return; }
+    // Need at least 3 floor cells for orb + enemy + spike; fall back to default if not
+    if (n < 3) { DrawTool_FillDefault(dt); return; }
 
     // Place exactly one orb on a random floor cell
     int orb_i = rand() % n;
@@ -123,6 +123,14 @@ void DrawTool_Randomize(DrawTool *dt) {
     int enemy_i = rand() % (n - 1);
     if (enemy_i >= orb_i) enemy_i++;
     dt->pixels[fy[enemy_i]][fx[enemy_i]] = CANVAS_VAL_ENEMY;
+
+    // Place exactly one spike on a third distinct floor cell
+    int sf[64], sn = 0;
+    for (int i = 0; i < n; i++)
+        if (i != orb_i && i != enemy_i)
+            { sf[sn] = i; sn++; }
+    int spike_pick = sf[rand() % sn];
+    dt->pixels[fy[spike_pick]][fx[spike_pick]] = CANVAS_VAL_SPIKE;
 }
 
 // Returns 1 if placing an orb at (cx,cy) would violate the isolation rule
@@ -150,10 +158,22 @@ static int enemy_has_adjacent(const DrawTool *dt, int cx, int cy) {
     return 0;
 }
 
+// Returns 1 if placing a spike at (cx,cy) would violate the isolation rule.
+static int spike_has_adjacent(const DrawTool *dt, int cx, int cy) {
+    int dirs[4][2] = {{0,-1},{0,1},{-1,0},{1,0}};
+    for (int d = 0; d < 4; d++) {
+        int nx = cx + dirs[d][0];
+        int ny = cy + dirs[d][1];
+        if (nx >= 0 && nx < CANVAS_SIZE && ny >= 0 && ny < CANVAS_SIZE)
+            if (dt->pixels[ny][nx] == CANVAS_VAL_SPIKE) return 1;
+    }
+    return 0;
+}
+
 void DrawTool_Update(DrawTool *dt) {
-    // G key cycles through all three paint modes
+    // G key cycles through all four paint modes
     if (IsKeyPressed(KEY_G))
-        dt->paint_mode = (dt->paint_mode + 1) % 3;
+        dt->paint_mode = (dt->paint_mode + 1) % 4;
 
     // Swatch button clicks (left-click on the mode swatches)
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
@@ -161,9 +181,11 @@ void DrawTool_Update(DrawTool *dt) {
         Rectangle wall_swatch  = { UI_X, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE };
         Rectangle orb_swatch   = { UI_X + SWATCH_SIZE + SWATCH_GAP, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE };
         Rectangle enemy_swatch = { UI_X + 2 * (SWATCH_SIZE + SWATCH_GAP), SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE };
+        Rectangle spike_swatch = { UI_X + 3 * (SWATCH_SIZE + SWATCH_GAP), SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE };
         if (CheckCollisionPointRec(m, wall_swatch))  { dt->paint_mode = DT_PAINT_WALL;  return; }
         if (CheckCollisionPointRec(m, orb_swatch))   { dt->paint_mode = DT_PAINT_ORB;   return; }
         if (CheckCollisionPointRec(m, enemy_swatch)) { dt->paint_mode = DT_PAINT_ENEMY; return; }
+        if (CheckCollisionPointRec(m, spike_swatch)) { dt->paint_mode = DT_PAINT_SPIKE; return; }
 
         Rectangle rand_btn = { BTN_RAND_X, BTN_RAND_Y, BTN_RAND_W, BTN_RAND_H };
         if (CheckCollisionPointRec(m, rand_btn)) { DrawTool_Randomize(dt); return; }
@@ -182,12 +204,30 @@ void DrawTool_Update(DrawTool *dt) {
                 } else if (dt->paint_mode == DT_PAINT_ORB) {
                     if (!orb_has_adjacent(dt, cx, cy))
                         dt->pixels[cy][cx] = CANVAS_VAL_ORB;
-                } else {
-                    // Enemy mode: isolated placement (no two adjacent enemy pixels)
+                } else if (dt->paint_mode == DT_PAINT_ENEMY) {
                     if (!enemy_has_adjacent(dt, cx, cy))
                         dt->pixels[cy][cx] = CANVAS_VAL_ENEMY;
+                } else {
+                    // Spike mode: isolated placement (no two adjacent spike pixels)
+                    if (!spike_has_adjacent(dt, cx, cy))
+                        dt->pixels[cy][cx] = CANVAS_VAL_SPIKE;
                 }
             }
+        }
+    }
+}
+
+// Draw 9 spike holes (3x3 grid) inside a cell at pixel origin (px, py).
+// cell_size is the pixel size of the cell (CELL_PIXELS in draw tool, TILE_SIZE in maze).
+// hole_color is the fill color for the holes.
+static void draw_spike_holes(int px, int py, int cell_size, Color hole_color) {
+    static const int offsets[3] = { 6, 14, 22 };  // positions within a 28px cell
+    // Scale offsets proportionally for other cell sizes
+    for (int ry = 0; ry < 3; ry++) {
+        for (int rx = 0; rx < 3; rx++) {
+            int hx = px + offsets[rx] * cell_size / 28;
+            int hy = py + offsets[ry] * cell_size / 28;
+            DrawCircle(hx, hy, 2, hole_color);
         }
     }
 }
@@ -232,6 +272,13 @@ void DrawTool_Render(const DrawTool *dt) {
                     DrawRectangle(px, py + line, CELL_PIXELS, 1, mortar);
                 DrawCircle(px + CELL_PIXELS / 2, py + CELL_PIXELS / 2,
                            CELL_PIXELS / 2 - 4, ENEMY_COLOR);
+            } else if (dt->pixels[y][x] == CANVAS_VAL_SPIKE) {
+                // Spike tile: floor background + mortar + 9 holes
+                DrawRectangle(px, py, CELL_PIXELS, CELL_PIXELS, FLOOR_COLOR);
+                Color mortar = {40, 35, 29, 255};
+                for (int line = 8; line < CELL_PIXELS; line += 8)
+                    DrawRectangle(px, py + line, CELL_PIXELS, 1, mortar);
+                draw_spike_holes(px, py, CELL_PIXELS, (Color){10, 8, 6, 255});
             } else {
                 // Plain floor cell — mortar lines only
                 Color mortar = {40, 35, 29, 255};
@@ -272,6 +319,7 @@ void DrawTool_Render(const DrawTool *dt) {
     int sw_wall_x  = UI_X;
     int sw_orb_x   = UI_X + SWATCH_SIZE + SWATCH_GAP;
     int sw_enemy_x = UI_X + 2 * (SWATCH_SIZE + SWATCH_GAP);
+    int sw_spike_x = UI_X + 3 * (SWATCH_SIZE + SWATCH_GAP);
     // Wall swatch (stone)
     DrawRectangle(sw_wall_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, (Color){55, 48, 42, 255});
     DrawRectangle(sw_wall_x, SWATCH_Y, SWATCH_SIZE, 2, (Color){85, 74, 63, 255});
@@ -287,13 +335,32 @@ void DrawTool_Render(const DrawTool *dt) {
     DrawCircle(sw_enemy_x + SWATCH_SIZE / 2, SWATCH_Y + SWATCH_SIZE / 2,
                SWATCH_SIZE / 2 - 3, ENEMY_COLOR);
     DrawRectangleLines(sw_enemy_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, (Color){80, 70, 55, 255});
+    // Spike swatch (floor + 3 small metallic triangles suggesting spikes)
+    DrawRectangle(sw_spike_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, (Color){28, 24, 20, 255});
+    {
+        Color spike_col = {155, 145, 125, 255};
+        int base_y = SWATCH_Y + SWATCH_SIZE - 6;
+        int tip_y  = SWATCH_Y + 6;
+        int xs[3]  = { sw_spike_x + 6, sw_spike_x + 14, sw_spike_x + 22 };
+        for (int i = 0; i < 3; i++) {
+            DrawTriangle(
+                (Vector2){ xs[i],     tip_y  },   // tip (top)
+                (Vector2){ xs[i] - 3, base_y },   // base-left
+                (Vector2){ xs[i] + 3, base_y },   // base-right
+                spike_col);
+        }
+    }
+    DrawRectangleLines(sw_spike_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE, (Color){80, 70, 55, 255});
     // Active highlight (amber border around selected swatch)
-    int active_x = (dt->paint_mode == DT_PAINT_WALL) ? sw_wall_x :
-                   (dt->paint_mode == DT_PAINT_ORB)  ? sw_orb_x  : sw_enemy_x;
+    int active_x = (dt->paint_mode == DT_PAINT_WALL)  ? sw_wall_x  :
+                   (dt->paint_mode == DT_PAINT_ORB)   ? sw_orb_x   :
+                   (dt->paint_mode == DT_PAINT_ENEMY) ? sw_enemy_x : sw_spike_x;
     DrawRectangleLinesEx((Rectangle){ active_x, SWATCH_Y, SWATCH_SIZE, SWATCH_SIZE }, 2,
                          (Color){230, 180, 60, 255});
-    // Labels
+    // Labels (two lines to fit all four)
     DrawText("Wall  Orb  Enemy", UI_X, SWATCH_Y + SWATCH_SIZE + 4, 12,
+             (Color){160, 130, 80, 255});
+    DrawText("Spike", UI_X + 3 * (SWATCH_SIZE + SWATCH_GAP), SWATCH_Y + SWATCH_SIZE + 4, 12,
              (Color){160, 130, 80, 255});
 
     // Clear button

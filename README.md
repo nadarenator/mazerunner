@@ -1,6 +1,6 @@
 # MazeRunner
 
-A procedurally generated infinite maze exploration game written in C with Raylib. You draw a tiny 8×8 pixel pattern, and a Wave Function Collapse algorithm turns it into an ever-shifting infinite maze you can explore in your browser. You play as a hooded explorer carrying a flickering wooden torch. Your hunger increases constantly; find and collect the green orbs scattered through the maze to stay alive — and avoid the flaming skulls that spawn from the darkness and chase you down.
+A procedurally generated infinite maze exploration game written in C with Raylib. You draw a tiny 8×8 pixel pattern, and a Wave Function Collapse algorithm turns it into an ever-shifting infinite maze you can explore in your browser. You play as a hooded explorer carrying a flickering wooden torch. Your hunger increases constantly; find and collect the green orbs scattered through the maze to stay alive — and avoid the flaming skulls that spawn from the darkness and chase you down. Watch out for spike traps hidden in the floor that periodically shoot up from their holes.
 
 ## How to Play
 
@@ -8,11 +8,13 @@ A procedurally generated infinite maze exploration game written in C with Raylib
    - **Wall mode** (black): paints solid walls that block movement.
    - **Orb mode** (green): paints orb spawn points. Orbs must be placed as single isolated pixels — no two orbs can be adjacent.
    - **Enemy mode** (red): paints enemy spawn points. Same isolation rule applies.
-   - Press **G** to cycle between modes, or click a colour swatch to select directly.
+   - **Spike mode** (stone floor with holes): paints spike trap tiles. Same isolation rule applies.
+   - Press **G** to cycle between modes (Wall → Orb → Enemy → Spike), or click a colour swatch to select directly.
 2. Press **Enter** or click **Start Exploring** to generate the maze.
 3. **Play mode** — Navigate with **WASD** or **arrow keys**. The maze extends infinitely; tiles that scroll offscreen are discarded and freshly regenerated if you return.
    - Your **hunger bar** (bottom of screen) drains continuously. Walk over a **green orb** to restore 50% hunger.
    - **Flaming skulls** spawn from within your torch radius and chase you using shortest-path (BFS). They materialise frozen (ice-blue with icicles) for 1 second, then ignite and begin chasing. They move at half your speed. Contact means **Game Over**.
+   - **Spike traps** look like regular floor tiles with 9 small holes. They cycle every 3 seconds: holes glow amber briefly as a warning, then metallic spikes shoot up for 1 second. Standing on raised spikes costs **50% hunger** (enemies are unaffected).
    - Hunger hits zero → **Game Over**. Press **Enter**, **Space**, or **ESC** to try again.
 4. Press **ESC** at any time to return to draw mode and start fresh.
 
@@ -165,7 +167,7 @@ mazerunner/
 | WASD / Arrow keys | Move |
 | ESC (play mode) | Return to draw mode |
 | ESC / ENTER / SPACE (game over) | Return to draw mode |
-| Left-click (draw mode) | Paint current mode (wall, orb, or enemy) |
+| Left-click (draw mode) | Paint current mode (wall, orb, enemy, or spike) |
 | Right-click (draw mode) | Erase (floor) |
-| G (draw mode) | Cycle paint mode: wall → orb → enemy |
+| G (draw mode) | Cycle paint mode: wall → orb → enemy → spike |
 | Enter (draw mode) | Start exploring |

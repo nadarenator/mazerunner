@@ -16,10 +16,16 @@
 
 typedef struct {
     int16_t pat_idx;          // WFC pattern index
-    uint8_t is_wall;          // 1=wall, 0=walkable (floor, orb, or enemy spawn)
+    uint8_t is_wall;          // 1=wall, 0=walkable (floor, orb, enemy spawn, or spike)
     uint8_t has_orb;          // 1=uncollected orb on this tile, 0=none
     uint8_t has_enemy_spawn;  // 1=enemy should be spawned here (one-shot, cleared after drain)
+    uint8_t has_spike;        // 1=spike trap tile (walkable; damages player when spikes are up)
 } TileCell;
+
+// Spike animation timing (shared by maze.c rendering and main.c damage logic)
+#define SPIKE_PERIOD      3.0f  // total cycle length in seconds
+#define SPIKE_WARN_START  1.7f  // holes glow amber as a 0.3s warning before raising
+#define SPIKE_UP_START    2.0f  // spikes fully raised from here to SPIKE_PERIOD
 
 typedef struct {
     TileCell cells[BUF_H][BUF_W];
@@ -65,3 +71,7 @@ int  Maze_DrainEnemySpawns(MazeBuffer *mb,
 
 // Write the world-pixel center of the spawn tile (guaranteed floor).
 void Maze_GetStartPos(const MazeBuffer *mb, float *out_x, float *out_y);
+
+// Returns 1 if spikes are currently in the raised (dangerous) position.
+// Uses GetTime() internally — same formula used by both rendering and damage logic.
+int Maze_IsSpikeUp(void);

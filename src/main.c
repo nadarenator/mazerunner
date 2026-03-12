@@ -33,9 +33,10 @@ static MazeBuffer g_maze;
 static Player     g_player;
 static float      g_hunger;
 static EnemyList  g_enemies;
-static int        g_caught_by_enemy; // 1 = enemy caused game over, 0 = hunger
-static float      g_score_time;      // seconds survived this run
-static int        g_score_orbs;      // orbs collected this run
+static int        g_caught_by_enemy;       // 1 = enemy caused game over, 0 = hunger
+static float      g_score_time;            // seconds survived this run
+static int        g_score_orbs;            // orbs collected this run
+static float      g_spike_last_damage_time; // GetTime() of last spike hit; -999 = never
 
 static void TransitionToPlay(void) {
     // Build WFC from whatever the user drew
@@ -65,6 +66,7 @@ static void TransitionToPlay(void) {
     g_caught_by_enemy = 0;
     g_score_time = 0.0f;
     g_score_orbs = 0;
+    g_spike_last_damage_time = -999.0f;
     g_state = STATE_PLAY;
 }
 
@@ -140,6 +142,21 @@ static void UpdateDrawFrame(void) {
             g_hunger += 0.5f;
             if (g_hunger > HUNGER_MAX) g_hunger = HUNGER_MAX;
             g_score_orbs++;
+        }
+
+        // Spike damage: 50% hunger when standing on a raised spike tile
+        if (Maze_IsSpikeUp()) {
+            int bc = ptx - g_maze.origin_x;
+            int br = pty - g_maze.origin_y;
+            if (bc >= 0 && bc < BUF_W && br >= 0 && br < BUF_H
+                    && g_maze.cells[br][bc].has_spike) {
+                float now = GetTime();
+                if (now - g_spike_last_damage_time > 1.5f) {
+                    g_hunger -= 0.5f;
+                    if (g_hunger < 0.0f) g_hunger = 0.0f;
+                    g_spike_last_damage_time = now;
+                }
+            }
         }
 
         // Game over: caught by enemy
