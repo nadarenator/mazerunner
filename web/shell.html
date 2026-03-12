@@ -6,18 +6,19 @@
   <title>MazeRunner</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: #111;
+    html, body {
+      width: 100%; height: 100%;
+      background: #08050f;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
+      overflow: hidden;
       font-family: monospace;
       color: #aaa;
     }
-    #canvas { display: block; border: 1px solid #333; }
-    #status { margin-top: 8px; font-size: 12px; opacity: 0.5; }
+    #canvas { display: block; image-rendering: pixelated; }
+    #status { position: fixed; bottom: 8px; font-size: 12px; opacity: 0.4; }
   </style>
 </head>
 <body>
@@ -25,12 +26,23 @@
   <div id="status">Loading...</div>
 
   <script>
+    var canvas = document.getElementById('canvas');
+
+    function fitCanvas() {
+      var scale = Math.min(window.innerWidth / 1280, window.innerHeight / 720);
+      canvas.style.width  = Math.floor(1280 * scale) + 'px';
+      canvas.style.height = Math.floor(720  * scale) + 'px';
+    }
+    fitCanvas();
+    window.addEventListener('resize', fitCanvas);
+
     var Module = {
-      canvas: document.getElementById('canvas'),
+      canvas: canvas,
       print: function(text) {},
       printErr: function(text) { console.warn('[MazeRunner]', text); },
       onRuntimeInitialized: function() {
         document.getElementById('status').textContent = '';
+        fitCanvas();
       }
     };
   </script>
