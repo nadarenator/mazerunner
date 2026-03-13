@@ -291,7 +291,8 @@
     // _lb_cache is an in-memory snapshot so lb_isTop10 stays synchronous
     // (it is called from C via EM_ASM_INT which cannot await).
     // ----------------------------------------------------------------
-    var _lb_cache = [];   // plain JS objects sorted best-first
+    var _lb_cache   = [];    // plain JS objects sorted best-first
+    var _lb_fetched = false; // true after the first fetch attempt resolves (success or fail)
 
     async function lb_fetchRemote() {
       try {
@@ -319,6 +320,7 @@
       } catch (e) {
         console.warn('[MazeRunner] leaderboard fetch failed:', e);
       }
+      _lb_fetched = true;
       lb_renderTable();
     }
 
@@ -364,8 +366,11 @@
         .replace(/"/g, '&quot;');
     }
 
-    // Called synchronously from C via EM_ASM_INT — checks cache only, no network
+    // Called synchronously from C via EM_ASM_INT — checks cache only, no network.
+    // Returns false if the fetch hasn't completed yet: we'd have no way to know
+    // whether the leaderboard is full, so we don't show the modal.
     window.lb_isTop10 = function(time_ms, orbs) {
+      if (!_lb_fetched) return false;
       if (_lb_cache.length < LB_MAX) return true;
       var worst = _lb_cache[_lb_cache.length - 1];
       return time_ms > worst.time_ms ||
