@@ -26,8 +26,8 @@
 // Right-panel preview region (draw screen only)
 #define PREVIEW_X   310
 #define PREVIEW_Y   220
-#define PREVIEW_W   950
-#define PREVIEW_H   480
+#define PREVIEW_W   860
+#define PREVIEW_H   430
 
 typedef enum { STATE_DRAW, STATE_PLAY, STATE_GAMEOVER } GameState;
 
