@@ -43,6 +43,7 @@ static int        g_caught_by_enemy;       // 1 = enemy caused game over, 0 = hu
 static float      g_score_time;            // seconds survived this run
 static int        g_score_orbs;            // orbs collected this run
 static float      g_spike_last_damage_time; // GetTime() of last spike hit; -999 = never
+static int        g_lb_modal_pending;      // 1 while name-entry modal is open (WASM only)
 
 // Preview maze shown in the right panel of the draw screen
 static WFCData    g_preview_wfc;
@@ -97,6 +98,28 @@ static void TransitionToPlay(void) {
     g_score_orbs = 0;
     g_spike_last_damage_time = -999.0f;
     g_state = STATE_PLAY;
+}
+
+static void TransitionToGameOver(void) {
+    g_state = STATE_GAMEOVER;
+    g_lb_modal_pending = 0;
+#if defined(PLATFORM_WEB)
+    {
+        int time_ms = (int)(g_score_time * 1000.0f);
+        if (EM_ASM_INT({
+                return (window.lb_isTop10 && window.lb_isTop10($0, $1)) ? 1 : 0;
+            }, time_ms, g_score_orbs)) {
+            g_lb_modal_pending = 1;
+            EM_ASM({
+                if (window.lb_showEntryModal) {
+                    var pix = [];
+                    for (var i = 0; i < 64; i++) pix.push(HEAPU8[$2 + i]);
+                    window.lb_showEntryModal($0, $1, pix);
+                }
+            }, time_ms, g_score_orbs, &g_draw.pixels[0][0]);
+        }
+    }
+#endif
 }
 
 // Draw the hunger bar HUD. `hunger` is in [0,1].
@@ -160,6 +183,21 @@ static void draw_tutorial_text(void) {
 
 static void UpdateDrawFrame(void) {
     float dt = GetFrameTime();
+
+#if defined(PLATFORM_WEB)
+    // JS sets window._lb_pending_load when the user clicks "Load Maze" on a leaderboard entry.
+    if (EM_ASM_INT({ return window._lb_pending_load ? 1 : 0; })) {
+        EM_ASM({
+            var src = window._lb_pending_load;
+            for (var i = 0; i < 64; i++) HEAPU8[$0 + i] = src[i] | 0;
+            window._lb_pending_load = null;
+        }, &g_draw.pixels[0][0]);
+        g_draw.dirty       = 1;
+        g_lb_modal_pending = 0;
+        g_preview_ok       = 0;
+        g_state            = STATE_DRAW;
+    }
+#endif
 
     // ---- Update ----
     if (g_state == STATE_DRAW) {
@@ -237,13 +275,13 @@ static void UpdateDrawFrame(void) {
         // Game over: caught by enemy
         if (EnemyList_CheckPlayerCollision(&g_enemies, g_player.x, g_player.y)) {
             g_caught_by_enemy = 1;
-            g_state = STATE_GAMEOVER;
+            TransitionToGameOver();
         }
 
         // Game over: hunger runs out
         if (g_hunger <= 0.0f) {
             g_caught_by_enemy = 0;
-            g_state = STATE_GAMEOVER;
+            TransitionToGameOver();
         }
 
         // ESC returns to draw mode
@@ -253,9 +291,21 @@ static void UpdateDrawFrame(void) {
         }
 
     } else { // STATE_GAMEOVER
-        if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_SPACE)) {
-            g_preview_ok = 0;
-            g_state = STATE_DRAW;
+#if defined(PLATFORM_WEB)
+        if (g_lb_modal_pending) {
+            if (EM_ASM_INT({ return window.lb_checkDone ? window.lb_checkDone() : 0; })) {
+                g_lb_modal_pending = 0;
+                EM_ASM({ if (window.lb_refresh) window.lb_refresh(); });
+                g_preview_ok = 0;
+                g_state = STATE_DRAW;
+            }
+        } else
+#endif
+        {
+            if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_SPACE)) {
+                g_preview_ok = 0;
+                g_state = STATE_DRAW;
+            }
         }
     }
 
@@ -327,15 +377,31 @@ static void UpdateDrawFrame(void) {
                                                : "You ran out of food.";
         DrawText(reason, cx - MeasureText(reason, 22) / 2, cy - 8, 22, LIGHTGRAY);
 
+        // Format time as M:SS.mmm or S.mmms
+        int total_ms = (int)(g_score_time * 1000.0f);
+        int mins = total_ms / 60000;
+        int secs = (total_ms % 60000) / 1000;
+        int ms   = total_ms % 1000;
+        char time_str[32];
+        if (mins > 0)
+            snprintf(time_str, sizeof(time_str), "%d:%02d.%03d", mins, secs, ms);
+        else
+            snprintf(time_str, sizeof(time_str), "%d.%03ds", secs, ms);
+
         char score_buf[64];
-        snprintf(score_buf, sizeof(score_buf), "Survived: %ds  |  Orbs: %d",
-                 (int)g_score_time, g_score_orbs);
+        snprintf(score_buf, sizeof(score_buf), "Survived: %s  |  Orbs: %d", time_str, g_score_orbs);
         DrawText(score_buf, cx - MeasureText(score_buf, 26) / 2, cy + 30, 26,
                  (Color){200, 190, 140, 255});
 
-        DrawText("Press ENTER, SPACE, or ESC to try again.",
-                 cx - MeasureText("Press ENTER, SPACE, or ESC to try again.", 18) / 2,
-                 cy + 76, 18, (Color){200,200,200,200});
+        if (g_lb_modal_pending) {
+            const char *modal_hint = "Enter your name in the pop-up to save your score.";
+            DrawText(modal_hint, cx - MeasureText(modal_hint, 16) / 2,
+                     cy + 76, 16, (Color){200, 170, 80, 180});
+        } else {
+            DrawText("Press ENTER, SPACE, or ESC to try again.",
+                     cx - MeasureText("Press ENTER, SPACE, or ESC to try again.", 18) / 2,
+                     cy + 76, 18, (Color){200, 200, 200, 200});
+        }
     }
 
     EndDrawing();

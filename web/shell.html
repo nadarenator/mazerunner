@@ -6,24 +6,199 @@
   <title>MazeRunner</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body {
-      width: 100%; height: 100%;
+    html { background: #08050f; }
+    body {
+      min-height: 100vh;
       background: #08050f;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      overflow: hidden;
+      overflow-y: auto;
       font-family: monospace;
       color: #aaa;
     }
+    #game-wrapper {
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
     #canvas { display: block; image-rendering: pixelated; }
     #status { position: fixed; bottom: 8px; font-size: 12px; opacity: 0.4; }
+
+    /* ---- Leaderboard section ---- */
+    #leaderboard-section {
+      width: 100%;
+      max-width: 680px;
+      padding: 40px 24px 56px;
+    }
+    #leaderboard-section h2 {
+      font-size: 18px;
+      color: #c8aa3c;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      text-align: center;
+      margin-bottom: 20px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #3a3226;
+    }
+    #lb-loading {
+      text-align: center;
+      color: #4a4050;
+      padding: 32px 0;
+      font-size: 13px;
+      letter-spacing: 1px;
+    }
+    #leaderboard-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    #leaderboard-table th {
+      color: #8a7848;
+      text-align: left;
+      padding: 6px 14px;
+      border-bottom: 1px solid #2e2820;
+      font-size: 11px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    #leaderboard-table td {
+      padding: 9px 14px;
+      border-bottom: 1px solid #18151f;
+      color: #857a6e;
+    }
+    #leaderboard-table tbody tr:hover td { background: #0f0d18; }
+    .lb-rank       { color: #4a4050; width: 40px; text-align: center; }
+    .lb-rank-gold  { color: #ffd700; }
+    .lb-rank-silv  { color: #b0b8c0; }
+    .lb-rank-brnz  { color: #c07840; }
+    .lb-name       { color: #d0c4a8; }
+    .lb-time       { color: #b8b090; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
+    .lb-orbs       { color: #46c85a; }
+    #lb-empty {
+      text-align: center;
+      color: #3a3040;
+      padding: 40px 0;
+      font-style: italic;
+      font-size: 13px;
+    }
+
+    /* ---- Name entry modal ---- */
+    #lb-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    #lb-modal-inner {
+      background: #0f0c1c;
+      border: 2px solid #a07828;
+      padding: 36px 44px 32px;
+      min-width: 380px;
+      text-align: center;
+    }
+    #lb-modal-inner h3 {
+      color: #ffd060;
+      font-size: 20px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+    #lb-score-display {
+      color: #b0a880;
+      font-size: 14px;
+      margin-bottom: 22px;
+      letter-spacing: 0.5px;
+    }
+    #lb-name-input {
+      display: block;
+      width: 100%;
+      background: #18152a;
+      border: 1px solid #4e4028;
+      color: #e8dfc0;
+      font-family: monospace;
+      font-size: 16px;
+      padding: 9px 14px;
+      margin-bottom: 22px;
+      outline: none;
+      text-align: center;
+      letter-spacing: 1px;
+    }
+    #lb-name-input:focus { border-color: #a07828; }
+    #lb-name-input::placeholder { color: #4a4438; }
+    .lb-modal-btns { display: flex; gap: 14px; justify-content: center; }
+    .lb-btn {
+      font-family: monospace;
+      font-size: 13px;
+      padding: 9px 26px;
+      border: 1px solid;
+      cursor: pointer;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    #lb-submit-btn { background: #221a08; border-color: #a07828; color: #ffd060; }
+    #lb-submit-btn:hover { background: #302210; }
+    #lb-skip-btn   { background: #14101e; border-color: #4a4050; color: #6a5e68; }
+    #lb-skip-btn:hover { background: #1e1828; }
+    .lb-load-btn {
+      font-family: monospace;
+      font-size: 11px;
+      padding: 3px 10px;
+      background: #10182a;
+      border: 1px solid #2e3e5a;
+      color: #6888b0;
+      cursor: pointer;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .lb-load-btn:hover { background: #182440; border-color: #5878a8; color: #a0c0e0; }
   </style>
 </head>
 <body>
-  <canvas id="canvas" width="1280" height="720" oncontextmenu="event.preventDefault()"></canvas>
+  <div id="game-wrapper">
+    <canvas id="canvas" width="1280" height="720" oncontextmenu="event.preventDefault()"></canvas>
+  </div>
   <div id="status">Loading...</div>
+
+  <!-- Leaderboard -->
+  <div id="leaderboard-section">
+    <h2>Top 10 Leaderboard</h2>
+    <div id="lb-loading">Loading scores...</div>
+    <table id="leaderboard-table" style="display:none">
+      <thead>
+        <tr>
+          <th class="lb-rank">#</th>
+          <th>Name</th>
+          <th>Time Survived</th>
+          <th>Orbs</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="leaderboard-body"></tbody>
+    </table>
+    <div id="lb-empty" style="display:none">No scores yet — be the first to explore the maze!</div>
+  </div>
+
+  <!-- Name-entry modal (shown when player qualifies for top 10) -->
+  <div id="lb-modal">
+    <div id="lb-modal-inner">
+      <h3>Top 10!</h3>
+      <p id="lb-score-display"></p>
+      <input type="text" id="lb-name-input" maxlength="20"
+             placeholder="Enter your name" autocomplete="off" spellcheck="false">
+      <div class="lb-modal-btns">
+        <button class="lb-btn" id="lb-submit-btn">Save Score</button>
+        <button class="lb-btn" id="lb-skip-btn">Skip</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     var canvas = document.getElementById('canvas');
@@ -40,15 +215,268 @@
     fitCanvas();
     window.addEventListener('resize', fitCanvas);
 
-    // Raylib's InitWindow() resets canvas CSS size after onRuntimeInitialized fires.
-    // Re-apply fitCanvas whenever that happens.
+    // Raylib resets canvas CSS size on init — re-apply fitCanvas when it does.
     new MutationObserver(fitCanvas).observe(canvas, {
       attributes: true, attributeFilter: ['style']
     });
 
+    // ----------------------------------------------------------------
+    // Firebase config — fill in your projectId and apiKey from the
+    // Firebase console (Settings → General → Your apps → SDK setup)
+    // ----------------------------------------------------------------
+    var FB_PROJECT_ID = 'mazerunner-5e428';
+    var FB_API_KEY    = 'AIzaSyCDxbyMGR13FWqvEwXS_1BFNLYxn2QWCBY';
+    var FB_BASE       = 'https://firestore.googleapis.com/v1/projects/' +
+                        FB_PROJECT_ID + '/databases/(default)/documents';
+    var LB_MAX        = 10;
+
+    // ----------------------------------------------------------------
+    // Firestore REST helpers
+    // ----------------------------------------------------------------
+
+    // Convert a Firestore typed value to a plain JS value
+    function fb_val(v) {
+      if (!v) return null;
+      if (v.stringValue  !== undefined) return v.stringValue;
+      if (v.integerValue !== undefined) return parseInt(v.integerValue, 10);
+      if (v.doubleValue  !== undefined) return v.doubleValue;
+      if (v.booleanValue !== undefined) return v.booleanValue;
+      if (v.arrayValue)
+        return (v.arrayValue.values || []).map(fb_val);
+      return null;
+    }
+
+    // Parse a Firestore document into a plain JS object
+    function fb_parseDoc(doc) {
+      var f = doc.fields || {};
+      return {
+        username: fb_val(f.username),
+        time_ms:  fb_val(f.time_ms),
+        orbs:     fb_val(f.orbs),
+        pixels:   fb_val(f.pixels)   // array of ints or null
+      };
+    }
+
+    // Build a Firestore document body from plain JS values
+    function fb_buildDoc(username, time_ms, orbs, pixels) {
+      var fields = {
+        username: { stringValue:  username       },
+        time_ms:  { integerValue: String(time_ms) },
+        orbs:     { integerValue: String(orbs)    }
+      };
+      if (pixels && pixels.length === 64) {
+        fields.pixels = {
+          arrayValue: {
+            values: pixels.map(function(p) {
+              return { integerValue: String(p | 0) };
+            })
+          }
+        };
+      }
+      return { fields: fields };
+    }
+
+    // ----------------------------------------------------------------
+    // Remote leaderboard — Firestore as the source of truth.
+    // _lb_cache is an in-memory snapshot so lb_isTop10 stays synchronous
+    // (it is called from C via EM_ASM_INT which cannot await).
+    // ----------------------------------------------------------------
+    var _lb_cache = [];   // plain JS objects sorted best-first
+
+    async function lb_fetchRemote() {
+      try {
+        var res = await fetch(FB_BASE + ':runQuery?key=' + FB_API_KEY, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            structuredQuery: {
+              from:    [{ collectionId: 'scores' }],
+              orderBy: [
+                { field: { fieldPath: 'time_ms' }, direction: 'DESCENDING' },
+                { field: { fieldPath: 'orbs'    }, direction: 'DESCENDING' }
+              ],
+              limit: LB_MAX
+            }
+          })
+        });
+        if (res.ok) {
+          var rows = await res.json();
+          // runQuery returns [{document: {...}}, ...]; last row may be {readTime} only
+          _lb_cache = rows
+            .filter(function(r) { return r.document; })
+            .map(function(r) { return fb_parseDoc(r.document); });
+        }
+      } catch (e) {
+        console.warn('[MazeRunner] leaderboard fetch failed:', e);
+      }
+      lb_renderTable();
+    }
+
+    async function lb_insertRemote(username, time_ms, orbs, pixels) {
+      try {
+        await fetch(FB_BASE + '/scores?key=' + FB_API_KEY, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(fb_buildDoc(username, time_ms, orbs, pixels))
+        });
+      } catch (e) {
+        console.warn('[MazeRunner] leaderboard insert failed:', e);
+      }
+    }
+
+    // ----------------------------------------------------------------
+    // Leaderboard helpers
+    // ----------------------------------------------------------------
+    var LB_NAME_KEY = 'mazerunner_username';
+    function lb_getSavedName() {
+      try { return localStorage.getItem(LB_NAME_KEY) || ''; } catch (e) { return ''; }
+    }
+    function lb_saveName(name) {
+      try { localStorage.setItem(LB_NAME_KEY, name); } catch (e) {}
+    }
+
+    // Format milliseconds as "M:SS.mmm" or "S.mmms"
+    function lb_formatTime(ms) {
+      var total_s = Math.floor(ms / 1000);
+      var mins    = Math.floor(total_s / 60);
+      var secs    = total_s % 60;
+      var millis  = String(ms % 1000).padStart(3, '0');
+      if (mins > 0)
+        return mins + ':' + String(secs).padStart(2, '0') + '.' + millis;
+      return secs + '.' + millis + 's';
+    }
+
+    function escHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // Called synchronously from C via EM_ASM_INT — checks cache only, no network
+    window.lb_isTop10 = function(time_ms, orbs) {
+      if (_lb_cache.length < LB_MAX) return true;
+      var worst = _lb_cache[_lb_cache.length - 1];
+      return time_ms > worst.time_ms ||
+             (time_ms === worst.time_ms && orbs > worst.orbs);
+    };
+
+    function lb_renderTable() {
+      var tbody   = document.getElementById('leaderboard-body');
+      var empty   = document.getElementById('lb-empty');
+      var table   = document.getElementById('leaderboard-table');
+      var loading = document.getElementById('lb-loading');
+
+      loading.style.display = 'none';
+      tbody.innerHTML = '';
+
+      if (_lb_cache.length === 0) {
+        table.style.display = 'none';
+        empty.style.display = 'block';
+        return;
+      }
+
+      empty.style.display = 'none';
+      table.style.display = '';
+
+      for (var i = 0; i < _lb_cache.length; i++) {
+        var e = _lb_cache[i];
+        var rankClass = i === 0 ? 'lb-rank lb-rank-gold'
+                      : i === 1 ? 'lb-rank lb-rank-silv'
+                      : i === 2 ? 'lb-rank lb-rank-brnz'
+                      : 'lb-rank';
+        var loadBtn = (e.pixels && e.pixels.length === 64)
+          ? '<button class="lb-load-btn" data-idx="' + i + '">Load Maze</button>'
+          : '';
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td class="' + rankClass + '">' + (i + 1)               + '</td>' +
+          '<td class="lb-name">'  + escHtml(e.username || '?')     + '</td>' +
+          '<td class="lb-time">'  + lb_formatTime(e.time_ms || 0)  + '</td>' +
+          '<td class="lb-orbs">'  + (e.orbs || 0)                  + '</td>' +
+          '<td>'                  + loadBtn                         + '</td>';
+        tbody.appendChild(tr);
+      }
+    }
+
+    // Called from C after a successful score submit (re-fetches from Firestore)
+    window.lb_refresh = function() { lb_fetchRemote(); };
+
+    // ---- Modal ----
+    var _lb_done = 0;   // polled by C each frame
+
+    window.lb_showEntryModal = function(time_ms, orbs, pixels) {
+      _lb_done = 0;
+      var modal   = document.getElementById('lb-modal');
+      var input   = document.getElementById('lb-name-input');
+      var scoreEl = document.getElementById('lb-score-display');
+      scoreEl.textContent = 'Time: ' + lb_formatTime(time_ms) + '   \u2022   Orbs: ' + orbs;
+      modal._time_ms = time_ms;
+      modal._orbs    = orbs;
+      modal._pixels  = pixels || null;
+      input.value = lb_getSavedName();
+      modal.style.display = 'flex';
+      setTimeout(function() { input.focus(); input.select(); }, 60);
+    };
+
+    window.lb_checkDone = function() { return _lb_done; };
+
+    async function lb_doSubmit() {
+      var modal = document.getElementById('lb-modal');
+      var name  = (document.getElementById('lb-name-input').value.trim()) || 'Anonymous';
+      lb_saveName(name);
+      // Disable buttons while saving to prevent double-submit
+      document.getElementById('lb-submit-btn').disabled = true;
+      modal.style.display = 'none';
+      await lb_insertRemote(name, modal._time_ms, modal._orbs, modal._pixels);
+      await lb_fetchRemote();   // refresh cache + re-render with the new score visible
+      setTimeout(function() {
+        document.getElementById('leaderboard-section').scrollIntoView({ behavior: 'smooth' });
+      }, 300);
+      document.getElementById('lb-submit-btn').disabled = false;
+      _lb_done = 1;
+    }
+
+    function lb_doSkip() {
+      document.getElementById('lb-modal').style.display = 'none';
+      _lb_done = 1;
+    }
+
+    document.getElementById('lb-submit-btn').addEventListener('click', lb_doSubmit);
+    document.getElementById('lb-skip-btn').addEventListener('click', lb_doSkip);
+
+    // stopPropagation prevents Raylib (which listens at the window level) from
+    // seeing keypresses typed into the name field.
+    document.getElementById('lb-name-input').addEventListener('keydown', function(e) {
+      e.stopPropagation();
+      if (e.key === 'Enter')  { e.preventDefault(); lb_doSubmit(); }
+      if (e.key === 'Escape') { e.preventDefault(); lb_doSkip();   }
+    });
+
+    // ---- Load Maze ----
+    // Pending maze pixel array — polled by C each frame via EM_ASM
+    window._lb_pending_load = null;
+
+    // Event delegation: survives tbody innerHTML rebuilds
+    document.getElementById('leaderboard-body').addEventListener('click', function(e) {
+      var btn = e.target.closest('.lb-load-btn');
+      if (!btn) return;
+      var idx = parseInt(btn.getAttribute('data-idx'), 10);
+      if (_lb_cache[idx] && _lb_cache[idx].pixels) {
+        window._lb_pending_load = _lb_cache[idx].pixels;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    });
+
+    // Fetch scores on page load, then refresh every 30 s to pick up other players' scores
+    lb_fetchRemote();
+    setInterval(lb_fetchRemote, 30000);
+
+    // ---- Emscripten Module ----
     var Module = {
       canvas: canvas,
-      print: function(text) {},
+      print:    function(text) {},
       printErr: function(text) { console.warn('[MazeRunner]', text); },
       onRuntimeInitialized: function() {
         document.getElementById('status').textContent = '';
