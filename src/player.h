@@ -7,6 +7,8 @@
 typedef struct {
     float x, y;           // world pixel position (center)
     float face_x, face_y; // unit vector of last movement direction
+    float anim_t;         // accumulated walk animation time (seconds)
+    int   is_moving;      // 1 if player moved this frame
 } Player;
 
 void  Player_Init(Player *p, float start_x, float start_y);
@@ -14,3 +16,5 @@ void  Player_Update(Player *p, const MazeBuffer *mb, float dt);
 void  Player_Render(const Player *p, float camera_x, float camera_y);
 float Player_CameraX(const Player *p);   // p->x - SCREEN_W/2
 float Player_CameraY(const Player *p);   // p->y - SCREEN_H/2
+void  Player_LoadTextures(void);
+void  Player_UnloadTextures(void);

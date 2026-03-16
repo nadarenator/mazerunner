@@ -42,6 +42,7 @@ int main(void) {
 
     InitWindow(SCREEN_W, SCREEN_H, "Test: Player + Health + Orbs");
     SetTargetFPS(60);
+    Player_LoadTextures();
 
     // Canvas with orb pixels so orbs spawn in the maze
     DrawTool dt;
@@ -125,6 +126,7 @@ int main(void) {
         EndDrawing();
     }
 
+    Player_UnloadTextures();
     CloseWindow();
     printf("Player test done. Orbs collected: %d\n", orbs_collected);
     return 0;

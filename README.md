@@ -167,6 +167,7 @@ mazerunner/
 | Asset | Author | Source |
 |---|---|---|
 | Skull Monster Sprite Sheet | dogchicken | [opengameart.org/content/skull-monster-sprite-sheet](https://opengameart.org/content/skull-monster-sprite-sheet) |
+| The Adventurer — Female | Sscary | [sscary.itch.io/the-adventurer-female](https://sscary.itch.io/the-adventurer-female) |
 
 ---
 

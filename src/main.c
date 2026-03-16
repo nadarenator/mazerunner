@@ -776,6 +776,7 @@ int main(void) {
     g_preview_regen_cd = 0.0f;
     DrawTool_Init(&g_draw);
     EnemyList_LoadTexture("assets/mon2_sprite_base.png");
+    Player_LoadTextures();
 
 #if defined(PLATFORM_WEB)
     emscripten_set_main_loop(UpdateDrawFrame, 0, 1);
@@ -783,6 +784,7 @@ int main(void) {
     while (!WindowShouldClose())
         UpdateDrawFrame();
     EnemyList_UnloadTexture();
+    Player_UnloadTextures();
     CloseWindow();
 #endif
     return 0;
