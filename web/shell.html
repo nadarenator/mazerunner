@@ -461,6 +461,16 @@
     document.getElementById('lb-submit-btn').addEventListener('click', lb_doSubmit);
     document.getElementById('lb-skip-btn').addEventListener('click', lb_doSkip);
 
+    // Raylib registers a capturing keydown listener on document (useCapture=true), which
+    // fires before the input's handler and calls preventDefault() — killing Backspace/Delete.
+    // We register our own capturing listener first (before WASM init) and neutralise
+    // preventDefault() on the event whenever the name input is focused.
+    document.addEventListener('keydown', function(e) {
+      if (document.activeElement === document.getElementById('lb-name-input')) {
+        e.preventDefault = function() {};
+      }
+    }, true);
+
     // stopPropagation prevents Raylib (which listens at the window level) from
     // seeing keypresses typed into the name field.
     document.getElementById('lb-name-input').addEventListener('keydown', function(e) {
