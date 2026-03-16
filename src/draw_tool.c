@@ -20,7 +20,7 @@
 #define BTN_CLEAR_H  36
 #define BTN_RAND_X   (BTN_CLEAR_X + BTN_CLEAR_W + 8)
 #define BTN_RAND_Y   BTN_ROW1_Y
-#define BTN_RAND_W   36
+#define BTN_RAND_W   (CANVAS_W_PX - BTN_CLEAR_W - 8)   // fills remaining row width (86px)
 #define BTN_RAND_H   36
 #define BTN_START_X  CANVAS_ORIGIN_X
 #define BTN_START_Y  (BTN_ROW1_Y + BTN_CLEAR_H + 12)
@@ -386,16 +386,12 @@ void DrawTool_Render(const DrawTool *dt) {
     Rectangle rand_btn = { BTN_RAND_X, BTN_RAND_Y, BTN_RAND_W, BTN_RAND_H };
     DrawRectangleRec(rand_btn, (Color){30, 28, 50, 255});
     DrawRectangleLinesEx(rand_btn, 2, (Color){100, 80, 160, 255});
-    // 5-pip die face
     {
-        int bx = BTN_RAND_X, by = BTN_RAND_Y, bw = BTN_RAND_W, bh = BTN_RAND_H;
-        int pad = 7, r = 3;
-        Color pip = (Color){200, 180, 255, 255};
-        DrawCircle(bx + pad,      by + pad,      r, pip);
-        DrawCircle(bx + bw - pad, by + pad,      r, pip);
-        DrawCircle(bx + bw/2,     by + bh/2,     r, pip);
-        DrawCircle(bx + pad,      by + bh - pad, r, pip);
-        DrawCircle(bx + bw - pad, by + bh - pad, r, pip);
+        const char *rlabel = "Randomize";
+        int rfs = 14;
+        int rtw = MeasureText(rlabel, rfs);
+        DrawText(rlabel, BTN_RAND_X + (BTN_RAND_W - rtw) / 2,
+                 BTN_RAND_Y + (BTN_RAND_H - rfs) / 2, rfs, (Color){200, 180, 255, 255});
     }
 
     // ── Start Exploring button ────────────────────────────────────────────────
