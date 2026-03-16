@@ -10,7 +10,11 @@
 typedef struct {
     float   x, y;         // world pixel position (center)
     float   freeze_timer; // seconds remaining before chasing begins
+    float   anim_t;       // walk animation time accumulator
+    float   face_dir;     // +1.0 = right, -1.0 = left (for sprite flip)
+    float   death_t;      // time into death animation (seconds)
     uint8_t active;
+    uint8_t dying;        // 1 = playing death animation, then deactivates
 } Enemy;
 
 typedef struct {
@@ -35,3 +39,10 @@ void EnemyList_CullOutOfBounds(EnemyList *el, const MazeBuffer *mb,
 
 // Return 1 if any active enemy overlaps the player (sum of radii distance check).
 int  EnemyList_CheckPlayerCollision(const EnemyList *el, float player_x, float player_y);
+
+// Kill any active non-frozen enemy standing on a raised spike tile.
+void EnemyList_KillOnSpikes(EnemyList *el, const MazeBuffer *mb);
+
+// Load/unload the enemy spritesheet texture. Call after InitWindow.
+void EnemyList_LoadTexture(const char *path);
+void EnemyList_UnloadTexture(void);

@@ -14,7 +14,8 @@ LDFLAGS  = $(RAYLIB_LIB) -lm -ldl -lpthread -lGL -lX11 -lXrandr -lXinerama -lXcu
 WASM_CFLAGS  = -O2 -I$(RAYLIB_SRC) -Isrc -DPLATFORM_WEB -s USE_GLFW=3
 WASM_LDFLAGS = $(RAYLIB_LIB_WEB) -s USE_GLFW=3 -s ASYNCIFY \
                -s TOTAL_MEMORY=67108864 \
-               --shell-file web/shell.html
+               --shell-file web/shell.html \
+               --preload-file assets
 
 # ---- Main game ----
 all: mazerunner

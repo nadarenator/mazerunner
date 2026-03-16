@@ -162,6 +162,14 @@ mazerunner/
 
 ---
 
+## Credits
+
+| Asset | Author | Source |
+|---|---|---|
+| Skull Monster Sprite Sheet | dogchicken | [opengameart.org/content/skull-monster-sprite-sheet](https://opengameart.org/content/skull-monster-sprite-sheet) |
+
+---
+
 ## Controls
 
 | Key / Input | Action |

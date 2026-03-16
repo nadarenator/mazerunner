@@ -18,6 +18,7 @@ int main(void) {
 
     InitWindow(SCREEN_W, SCREEN_H, "Test: Enemy BFS Chase");
     SetTargetFPS(60);
+    EnemyList_LoadTexture("assets/mon2_sprite_base.png");
 
     // Canvas: wall structure with isolated enemy spawn pixels.
     // Enemies at (1,4) and (6,1) are well-separated from each other.
@@ -128,6 +129,7 @@ int main(void) {
         EndDrawing();
     }
 
+    EnemyList_UnloadTexture();
     CloseWindow();
     printf("Enemy test done. Total collisions: %d\n", collision_count);
     return 0;

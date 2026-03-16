@@ -3,6 +3,35 @@
 #include <string.h>
 #include <math.h>
 
+// ---- Spritesheet ----
+// 512×512 RGBA sheet, 64×64 cells, sprites centred within each cell.
+#define SHEET_CELL     64
+#define ROW_WALK       64   // walk animation  — 4 frames (cols 0-3)
+#define ROW_DEAD      192   // death animation  — 7 frames (cols 0-6)
+#define ROW_GHOST     320   // ghost/transform  — 7 frames:
+                            //   cols 0-4 = skeleton→ghost transition
+                            //   cols 5-6 = pure ghost floating (loop)
+
+// Freeze-phase split: first GHOST_PHASE_T seconds show the ghost loop,
+// then the remainder plays the reverse transform (ghost→skull).
+#define GHOST_PHASE_T  0.55f
+
+// Animation frame rates
+#define WALK_FPS       8.0f   // 4-frame walk cycle at 8 fps
+#define GHOST_FPS      6.0f   // 2-frame ghost hover at 6 fps
+#define DEATH_FPS     10.0f   // 7-frame death animation at 10 fps → 0.7 s total
+#define DEATH_FRAMES   7
+#define DEATH_DUR     (DEATH_FRAMES / DEATH_FPS)
+
+// On-screen draw size and vertical anchor.
+// ENEMY_DRAW_Y_OFFSET shifts the sprite upward so feet align with the collision center.
+#define ENEMY_DRAW_W        SHEET_CELL   // 64 px
+#define ENEMY_DRAW_H        SHEET_CELL   // 64 px
+#define ENEMY_DRAW_Y_OFFSET 10.0f        // px to lift sprite above its world position
+
+static Texture2D g_enemy_tex;
+static int       g_tex_loaded = 0;
+
 // ---- BFS pathfinding ----
 
 // One BFS node: tile coords + index of the node we came from (-1 = none).
@@ -91,12 +120,26 @@ void EnemyList_Init(EnemyList *el) {
     memset(el, 0, sizeof(*el));
 }
 
+void EnemyList_LoadTexture(const char *path) {
+    g_enemy_tex = LoadTexture(path);
+    g_tex_loaded = (g_enemy_tex.id > 0);
+}
+
+void EnemyList_UnloadTexture(void) {
+    if (g_tex_loaded) UnloadTexture(g_enemy_tex);
+    g_tex_loaded = 0;
+}
+
 void EnemyList_Spawn(EnemyList *el, float world_x, float world_y) {
     for (int i = 0; i < MAX_ENEMIES; i++) {
         if (el->enemies[i].active) continue;
         el->enemies[i].x            = world_x;
         el->enemies[i].y            = world_y;
         el->enemies[i].freeze_timer = ENEMY_FREEZE_SEC;
+        el->enemies[i].anim_t       = 0.0f;
+        el->enemies[i].face_dir     = 1.0f;
+        el->enemies[i].death_t      = 0.0f;
+        el->enemies[i].dying        = 0;
         el->enemies[i].active       = 1;
         return;
     }
@@ -112,6 +155,12 @@ void EnemyList_Update(EnemyList *el, const MazeBuffer *mb,
         if (!el->enemies[i].active) continue;
 
         Enemy *e = &el->enemies[i];
+
+        if (e->dying) {
+            e->death_t += dt;
+            if (e->death_t >= DEATH_DUR) e->active = 0;
+            continue;
+        }
 
         if (e->freeze_timer > 0.0f) {
             e->freeze_timer -= dt;
@@ -139,105 +188,71 @@ void EnemyList_Update(EnemyList *el, const MazeBuffer *mb,
             e->x = target_x;
             e->y = target_y;
         } else {
+            if (fabsf(vx) > 0.5f)
+                e->face_dir = (vx > 0.0f) ? 1.0f : -1.0f;
             float step = ENEMY_SPEED * dt;
             if (step > dist) step = dist; // don't overshoot
             e->x += (vx / dist) * step;
             e->y += (vy / dist) * step;
         }
+        e->anim_t += dt;
     }
 }
 
 void EnemyList_Render(const EnemyList *el, float camera_x, float camera_y) {
-    float t = GetTime();
-
-    // Flame tongue offsets and heights (left, centre, right)
-    static const float flame_ox[3]  = { -6.0f,  0.0f,  6.0f };
-    static const float flame_h[3]   = { 13.0f, 17.0f, 13.0f };
-    static const float flame_ph[3]  = {  0.0f,  2.1f,  4.2f }; // phase offsets
-
-    // Icicle offsets and lengths (left, centre, right)
-    static const float ice_ox[3]    = { -5.0f,  0.0f,  5.0f };
-    static const float ice_len[3]   = {  9.0f, 13.0f,  9.0f };
-
     for (int i = 0; i < MAX_ENEMIES; i++) {
         if (!el->enemies[i].active) continue;
 
-        float sx = el->enemies[i].x - camera_x;
-        float sy = el->enemies[i].y - camera_y;
-        if (sx < -40 || sx > SCREEN_W + 40) continue;
-        if (sy < -40 || sy > SCREEN_H + 40) continue;
+        const Enemy *e = &el->enemies[i];
+        float sx = e->x - camera_x;
+        float sy = e->y - camera_y;
+        if (sx < -80 || sx > SCREEN_W + 80) continue;
+        if (sy < -80 || sy > SCREEN_H + 80) continue;
 
-        int frozen = el->enemies[i].freeze_timer > 0.0f;
+        if (!g_tex_loaded) continue;
 
-        if (!frozen) {
-            // ---- Flame glow (warm halo behind the skull) ----
-            float glow_r = 22.0f + sinf(t * 6.0f) * 3.0f;
-            DrawCircleGradient(
-                (int)sx, (int)(sy - 10),
-                glow_r,
-                (Color){230, 100, 20, 80},
-                (Color){0, 0, 0, 0}
-            );
+        Rectangle src;
 
-            // ---- Three flame tongues pointing up ----
-            // Vertex winding: bottom-left, bottom-right, tip (CCW in OpenGL NDC)
-            for (int j = 0; j < 3; j++) {
-                float wobble = sinf(t * 5.0f + flame_ph[j]) * 3.5f;
-                float bx = sx + flame_ox[j];
-                float by = sy - 9.0f;
-                Color col = (j == 1)
-                    ? (Color){255, 220, 40, 220}   // centre tongue: yellow
-                    : (Color){220,  80, 10, 200};  // outer tongues: orange
-                DrawTriangle(
-                    (Vector2){ bx - 4.0f,        by              },  // bottom-left
-                    (Vector2){ bx + 4.0f,        by              },  // bottom-right
-                    (Vector2){ bx + wobble, by - flame_h[j] },       // tip
-                    col
-                );
-            }
-        }
+        if (e->dying) {
+            int f = (int)(e->death_t * DEATH_FPS);
+            if (f >= DEATH_FRAMES) f = DEATH_FRAMES - 1;
+            src = (Rectangle){ (float)f * SHEET_CELL, ROW_DEAD, SHEET_CELL, SHEET_CELL };
+        } else {
 
-        // ---- Skull base ----
-        Color skull_col = frozen
-            ? (Color){160, 205, 240, 255}
-            : (Color){220, 210, 190, 255};
-        DrawCircle((int)sx, (int)sy, 12, skull_col);
+        float elapsed = ENEMY_FREEZE_SEC - e->freeze_timer; // 0 at spawn, grows
 
-        // ---- Eye sockets ----
-        Color eye_col = frozen
-            ? (Color){ 90, 150, 220, 255}
-            : (Color){ 25,  15,  10, 255};
-        DrawCircle((int)(sx - 4), (int)(sy - 2), 3, eye_col);
-        DrawCircle((int)(sx + 4), (int)(sy - 2), 3, eye_col);
-
-        // ---- Nose cavity ----
-        DrawCircle((int)sx, (int)(sy + 3), 2, eye_col);
-
-        if (frozen) {
-            // ---- Icicles growing downward over the freeze duration ----
-            float progress = 1.0f - el->enemies[i].freeze_timer / ENEMY_FREEZE_SEC;
-            Color ice = (Color){180, 230, 255, 220};
-            for (int j = 0; j < 3; j++) {
-                float ix  = sx + ice_ox[j];
-                float iy  = sy + 9.0f;
-                float tip = iy + ice_len[j] * progress;
-                // Vertex winding: tip, right-base, left-base (CCW in OpenGL NDC)
-                DrawTriangle(
-                    (Vector2){ ix,          tip },  // tip (bottom)
-                    (Vector2){ ix + 2.5f,   iy  },  // right base
-                    (Vector2){ ix - 2.5f,   iy  },  // left base
-                    ice
-                );
+        if (e->freeze_timer > 0.0f) {
+            if (elapsed < GHOST_PHASE_T) {
+                // Pure ghost hover: loop frames 5-6 at GHOST_FPS
+                int f = (int)(elapsed * GHOST_FPS) % 2;
+                src = (Rectangle){ (float)(5 + f) * SHEET_CELL, ROW_GHOST,
+                                    SHEET_CELL, SHEET_CELL };
+            } else {
+                // Reverse transform (ghost → skull): frames 4..0
+                float t = (elapsed - GHOST_PHASE_T) / (ENEMY_FREEZE_SEC - GHOST_PHASE_T);
+                int f = (int)(t * 5.0f);
+                if (f > 4) f = 4;
+                src = (Rectangle){ (float)(4 - f) * SHEET_CELL, ROW_GHOST,
+                                    SHEET_CELL, SHEET_CELL };
             }
         } else {
-            // ---- Teeth: 4 small rectangles along bottom of skull ----
-            Color teeth = (Color){235, 228, 212, 255};
-            for (int j = 0; j < 4; j++) {
-                int tx = (int)(sx) - 7 + j * 4;
-                int ty = (int)(sy) + 8;
-                DrawRectangle(tx, ty, 3, 4, teeth);
-            }
+            // Walk: 4 frames at WALK_FPS
+            int f = (int)(e->anim_t * WALK_FPS) % 4;
+            src = (Rectangle){ (float)f * SHEET_CELL, ROW_WALK,
+                                SHEET_CELL, SHEET_CELL };
         }
+
+        } // end !dying
+
+        // Flip horizontally when facing left.
+        // Raylib's DrawTexturePro handles negative src.width internally by swapping
+        // the left/right UV edges — do NOT also shift src.x or the flip is applied twice.
+        if (e->face_dir < 0.0f)
+            src.width = -src.width;
+
+        Rectangle dst    = { sx, sy - ENEMY_DRAW_Y_OFFSET, (float)ENEMY_DRAW_W, (float)ENEMY_DRAW_H };
+        Vector2   origin = { ENEMY_DRAW_W / 2.0f, ENEMY_DRAW_H / 2.0f };
+        DrawTexturePro(g_enemy_tex, src, dst, origin, 0.0f, WHITE);
     }
 }
 
@@ -267,9 +282,26 @@ int EnemyList_CheckPlayerCollision(const EnemyList *el, float px, float py) {
     static const float TOUCH_DIST = ENEMY_RADIUS + 10.0f; // PLAYER_RADIUS defined in player.h
     for (int i = 0; i < MAX_ENEMIES; i++) {
         if (!el->enemies[i].active) continue;
+        if (el->enemies[i].dying) continue; // dying enemies can't hurt the player
         float dx = el->enemies[i].x - px;
         float dy = el->enemies[i].y - py;
         if (dx * dx + dy * dy < TOUCH_DIST * TOUCH_DIST) return 1;
     }
     return 0;
+}
+
+void EnemyList_KillOnSpikes(EnemyList *el, const MazeBuffer *mb) {
+    if (!Maze_IsSpikeUp()) return;
+    for (int i = 0; i < MAX_ENEMIES; i++) {
+        if (!el->enemies[i].active) continue;
+        if (el->enemies[i].dying) continue;
+        if (el->enemies[i].freeze_timer > 0.0f) continue; // frozen — immune
+        int etx = (int)floorf(el->enemies[i].x / TILE_SIZE);
+        int ety = (int)floorf(el->enemies[i].y / TILE_SIZE);
+        int bc  = etx - mb->origin_x;
+        int br  = ety - mb->origin_y;
+        if (bc < 0 || bc >= BUF_W || br < 0 || br >= BUF_H) continue;
+        if (mb->cells[br][bc].has_spike)
+            el->enemies[i].dying = 1;
+    }
 }

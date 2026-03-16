@@ -556,6 +556,7 @@ static void UpdateDrawFrame(void) {
                     g_spike_last_damage_time = now;
                 }
             }
+            EnemyList_KillOnSpikes(&g_enemies, &g_maze);
         }
         if (EnemyList_CheckPlayerCollision(&g_enemies, g_player.x, g_player.y)) {
             g_caught_by_enemy = 1; TransitionToGameOver();
@@ -766,12 +767,14 @@ int main(void) {
     g_preview_ok       = 0;
     g_preview_regen_cd = 0.0f;
     DrawTool_Init(&g_draw);
+    EnemyList_LoadTexture("assets/mon2_sprite_base.png");
 
 #if defined(PLATFORM_WEB)
     emscripten_set_main_loop(UpdateDrawFrame, 0, 1);
 #else
     while (!WindowShouldClose())
         UpdateDrawFrame();
+    EnemyList_UnloadTexture();
     CloseWindow();
 #endif
     return 0;
