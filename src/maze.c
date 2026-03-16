@@ -4,7 +4,7 @@
 #include <math.h>
 #include <stdlib.h>
 
-static const float FRINGE_BAND = 3.0f * TILE_SIZE;  // 96px swivel band inside vision edge
+static const float FRINGE_BAND  = 3.0f * TILE_SIZE;  // 96px swivel band inside vision edge
 
 // ---- Internal: set one cell from a pattern index ----
 
@@ -166,10 +166,6 @@ void Maze_RenderTiles(const MazeBuffer *mb, float camera_x, float camera_y) {
                     // Top/left bevel
                     DrawRectangle((int)sx, (int)sy, TILE_SIZE, 2, (Color){85, 74, 63, 255});
                     DrawRectangle((int)sx, (int)sy, 2, TILE_SIZE, (Color){85, 74, 63, 255});
-                    // Bottom cap: bright strip where floor lies directly below
-                    if (r + 1 < BUF_H && !mb->cells[r + 1][c].is_wall)
-                        DrawRectangle((int)sx, (int)sy + TILE_SIZE - 4, TILE_SIZE, 4,
-                                      (Color){120, 100, 78, 255});
                 } else {
                     // Horizontal mortar lines (stone brickwork feel)
                     Color mortar = {40, 35, 29, 255};
@@ -186,6 +182,33 @@ void Maze_RenderTiles(const MazeBuffer *mb, float camera_x, float camera_y) {
                 Vector2   origin = { depth * 0.5f, TILE_SIZE * 0.5f };
                 DrawRectanglePro(rec, origin, atan2f(dy, dx) * RAD2DEG, col);
             }
+        }
+    }
+
+    // South face pass: draw isometric wall faces below wall tiles
+    for (int r = 0; r < BUF_H; r++) {
+        for (int c = 0; c < BUF_W; c++) {
+            if (!mb->cells[r][c].is_wall) continue;
+            // Only show south face when floor (or map edge) is directly below
+            if (r + 1 < BUF_H && mb->cells[r + 1][c].is_wall) continue;
+
+            float sx = (float)(mb->origin_x + c) * TILE_SIZE - camera_x;
+            float sy = (float)(mb->origin_y + r) * TILE_SIZE - camera_y;
+            float face_top = sy + TILE_SIZE;
+            if (sx > SCREEN_W || sx < -(float)TILE_SIZE) continue;
+            if (face_top > SCREEN_H || face_top + WALL_FACE_H < 0) continue;
+
+            float face_cx = sx + TILE_SIZE * 0.5f;
+            float face_cy = face_top + WALL_FACE_H * 0.5f;
+            float fdx = face_cx - scx, fdy = face_cy - scy;
+            float dist = sqrtf(fdx * fdx + fdy * fdy);
+            if (dist > VISION_RADIUS) continue;
+
+            if (dist > fringe_inner) continue;  // only show once tile has fully materialised
+
+            int fx = (int)sx, fy = (int)face_top;
+            DrawRectangle(fx, fy,      TILE_SIZE, 2,              (Color){120, 100, 78, 255}); // bright edge
+            DrawRectangle(fx, fy + 2,  TILE_SIZE, WALL_FACE_H-2,  (Color){ 65,  55, 43, 255}); // stone body
         }
     }
 
@@ -330,14 +353,27 @@ void Maze_RenderTilesBasic(const MazeBuffer *mb, float camera_x, float camera_y)
             if (mb->cells[r][c].is_wall) {
                 DrawRectangle((int)sx, (int)sy, TILE_SIZE, 2, (Color){85, 74, 63, 255});
                 DrawRectangle((int)sx, (int)sy, 2, TILE_SIZE, (Color){85, 74, 63, 255});
-                if (r + 1 < BUF_H && !mb->cells[r + 1][c].is_wall)
-                    DrawRectangle((int)sx, (int)sy + TILE_SIZE - 4, TILE_SIZE, 4,
-                                  (Color){120, 100, 78, 255});
             } else {
                 Color mortar = {40, 35, 29, 255};
                 for (int line = 8; line < TILE_SIZE; line += 8)
                     DrawRectangle((int)sx, (int)sy + line, TILE_SIZE, 1, mortar);
             }
+        }
+    }
+
+    // South face pass
+    for (int r = 0; r < BUF_H; r++) {
+        for (int c = 0; c < BUF_W; c++) {
+            if (!mb->cells[r][c].is_wall) continue;
+            if (r + 1 < BUF_H && mb->cells[r + 1][c].is_wall) continue;
+            float sx = (float)(mb->origin_x + c) * TILE_SIZE - camera_x;
+            float sy = (float)(mb->origin_y + r) * TILE_SIZE - camera_y;
+            float face_top = sy + TILE_SIZE;
+            if (sx > SCREEN_W || sx < -(float)TILE_SIZE) continue;
+            if (face_top > SCREEN_H || face_top + WALL_FACE_H < 0) continue;
+            int fx = (int)sx, fy = (int)face_top;
+            DrawRectangle(fx, fy,      TILE_SIZE, 2,              (Color){120, 100, 78, 255});
+            DrawRectangle(fx, fy + 2,  TILE_SIZE, WALL_FACE_H-2,  (Color){ 65,  55, 43, 255});
         }
     }
 }

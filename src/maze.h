@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #define TILE_SIZE      32
+#define WALL_FACE_H    10  // south-face height in pixels for isometric depth
 #define SCREEN_W     1280
 #define SCREEN_H      720
 

@@ -358,16 +358,15 @@ static void draw_pixel_tile(const uint8_t pixels[][CANVAS_SIZE],
     static const Color FLOOR_COL  = { 28,  24,  20, 255 };
     static const Color WALL_COL   = { 55,  48,  42, 255 };
     static const Color BEVEL_COL  = { 85,  74,  63, 255 };
-    static const Color CAP_COL    = {120, 100,  78, 255 };
     static const Color MORTAR_COL = { 40,  35,  29, 255 };
     static const Color ORB_COL    = { 70, 200,  90, 255 };
     static const Color ENEMY_COL  = {160,  20,  20, 255 };
     static const Color GRID_COL   = { 50,  44,  38, 180 };
 
     float s = (float)cell / 28.0f;               // scale factor vs base cell size
-    int bevel = (int)(2 * s); if (bevel < 1) bevel = 1;
-    int cap   = (int)(4 * s); if (cap   < 1) cap   = 1;
-    int mstep = (int)(8 * s); if (mstep < 1) mstep = 1;
+    int bevel  = (int)(2 * s); if (bevel  < 1) bevel  = 1;
+    int face_h = (int)(WALL_FACE_H * s); if (face_h < 4) face_h = 4;
+    int mstep  = (int)(8 * s); if (mstep  < 1) mstep  = 1;
     int orb_r = (int)(10 * s); if (orb_r < 2) orb_r = 2;
     int hole_r = (int)(2 * s); if (hole_r < 1) hole_r = 1;
     int spike_offs[3] = { (int)(6*s), (int)(14*s), (int)(22*s) };
@@ -381,10 +380,6 @@ static void draw_pixel_tile(const uint8_t pixels[][CANVAS_SIZE],
                 DrawRectangle(px, py, cell, cell, WALL_COL);
                 DrawRectangle(px, py, cell, bevel, BEVEL_COL);   // top bevel
                 DrawRectangle(px, py, bevel, cell, BEVEL_COL);   // left bevel
-                // Bottom cap when the cell below is not a wall
-                int below = (y + 1 < CANVAS_SIZE) ? pixels[y+1][x] : CANVAS_VAL_FLOOR;
-                if (below != CANVAS_VAL_WALL)
-                    DrawRectangle(px, py + cell - cap, cell, cap, CAP_COL);
             } else {
                 // Floor base + horizontal mortar lines
                 DrawRectangle(px, py, cell, cell, FLOOR_COL);
@@ -402,6 +397,19 @@ static void draw_pixel_tile(const uint8_t pixels[][CANVAS_SIZE],
                                        hole_r, (Color){10, 8, 6, 255});
                 }
             }
+        }
+    }
+
+    // South face pass — drawn after all cells so faces appear on top of floor below
+    for (int y = 0; y < CANVAS_SIZE; y++) {
+        for (int x = 0; x < CANVAS_SIZE; x++) {
+            if (pixels[y][x] != CANVAS_VAL_WALL) continue;
+            int below = (y + 1 < CANVAS_SIZE) ? pixels[y+1][x] : CANVAS_VAL_FLOOR;
+            if (below == CANVAS_VAL_WALL) continue;
+            int px = ox + x * cell;
+            int fy = oy + (y + 1) * cell;
+            DrawRectangle(px, fy,          cell, 2,          (Color){120, 100, 78, 255});
+            DrawRectangle(px, fy + 2,      cell, face_h - 2, (Color){ 65,  55, 43, 255});
         }
     }
 
