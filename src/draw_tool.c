@@ -2,6 +2,8 @@
 #include "raylib.h"
 #include <string.h>
 
+#define CRAFTPIX_BASE "craftpix-099511-free-race-track-2d-game-tile-set/PNG"
+
 #define CANVAS_W_PX  (CANVAS_SIZE * CELL_PIXELS)
 #define CANVAS_H_PX  (CANVAS_SIZE * CELL_PIXELS)
 
@@ -27,6 +29,54 @@ typedef struct {
     uint8_t id;
     const char *label;
 } TileOption;
+
+typedef struct {
+    Texture2D textures[ROAD_TILE_COUNT];
+    unsigned char loaded[ROAD_TILE_COUNT];
+    int attempted;
+} DrawTileAssets;
+
+static DrawTileAssets g_draw_tiles;
+
+static void try_load_tile(uint8_t tile_type, const char *path) {
+    if (!FileExists(path)) return;
+    Texture2D tex = LoadTexture(path);
+    if (tex.id > 0) {
+        g_draw_tiles.textures[tile_type] = tex;
+        g_draw_tiles.loaded[tile_type] = 1;
+    }
+}
+
+static void ensure_tiles_loaded(void) {
+    if (g_draw_tiles.attempted) return;
+    g_draw_tiles.attempted = 1;
+
+    try_load_tile(ROAD_TILE_NONE,       CRAFTPIX_BASE "/Background_Tiles/Grass_Tile.png");
+    try_load_tile(ROAD_TILE_FULL,       CRAFTPIX_BASE "/Road_01/Road_01_Tile_05/Road_01_Tile_05.png");
+    try_load_tile(ROAD_TILE_STRAIGHT_H, CRAFTPIX_BASE "/Road_01/Road_01_Tile_01/Road_01_Tile_01.png");
+    try_load_tile(ROAD_TILE_STRAIGHT_V, CRAFTPIX_BASE "/Road_01/Road_01_Tile_02/Road_01_Tile_02.png");
+    try_load_tile(ROAD_TILE_TURN_NE,    CRAFTPIX_BASE "/Road_01/Road_01_Tile_03/Road_01_Tile_03.png");
+    try_load_tile(ROAD_TILE_TURN_NW,    CRAFTPIX_BASE "/Road_01/Road_01_Tile_04/Road_01_Tile_04.png");
+    try_load_tile(ROAD_TILE_TURN_SE,    CRAFTPIX_BASE "/Road_01/Road_01_Tile_06/Road_01_Tile_06.png");
+    try_load_tile(ROAD_TILE_TURN_SW,    CRAFTPIX_BASE "/Road_01/Road_01_Tile_07/Road_01_Tile_07.png");
+    try_load_tile(ROAD_TILE_T_N,        CRAFTPIX_BASE "/Road_01/Road_01_Tile_08/Road_01_Tile_08.png");
+    try_load_tile(ROAD_TILE_T_E,        CRAFTPIX_BASE "/Road_02/Road_02_Tile_01/Road_02_Tile_01.png");
+    try_load_tile(ROAD_TILE_T_S,        CRAFTPIX_BASE "/Road_02/Road_02_Tile_02/Road_02_Tile_02.png");
+    try_load_tile(ROAD_TILE_T_W,        CRAFTPIX_BASE "/Road_02/Road_02_Tile_03/Road_02_Tile_03.png");
+    try_load_tile(ROAD_TILE_CROSS,      CRAFTPIX_BASE "/Road_02/Road_02_Tile_04/Road_02_Tile_04.png");
+}
+
+static int draw_textured_tile_if_available(int x, int y, int size, uint8_t tile_type) {
+    ensure_tiles_loaded();
+    if (!RoadTile_IsValid(tile_type)) return 0;
+    if (!g_draw_tiles.loaded[tile_type]) return 0;
+
+    Texture2D tex = g_draw_tiles.textures[tile_type];
+    Rectangle src = { 0.0f, 0.0f, (float)tex.width, (float)tex.height };
+    Rectangle dst = { (float)x, (float)y, (float)size, (float)size };
+    DrawTexturePro(tex, src, dst, (Vector2){0.0f, 0.0f}, 0.0f, WHITE);
+    return 1;
+}
 
 static const TileOption k_tile_options[] = {
     { ROAD_TILE_NONE,        "Empty" },
@@ -62,6 +112,11 @@ static const char *tile_label(uint8_t id) {
 }
 
 static void draw_road_tile_preview(int x, int y, int size, uint8_t tile_type) {
+    if (draw_textured_tile_if_available(x, y, size, tile_type)) {
+        DrawRectangleLinesEx((Rectangle){(float)x, (float)y, (float)size, (float)size}, 1.0f, (Color){20, 20, 20, 255});
+        return;
+    }
+
     Color grass = (Color){35, 120, 45, 255};
     Color road  = (Color){55, 55, 55, 255};
     Color edge  = (Color){20, 20, 20, 255};
@@ -258,4 +313,14 @@ int DrawTool_StartClicked(void) {
     }
     if (IsKeyPressed(KEY_ENTER)) return 1;
     return 0;
+}
+
+void DrawTool_UnloadAssets(void) {
+    for (int i = 0; i < ROAD_TILE_COUNT; i++) {
+        if (g_draw_tiles.loaded[i]) {
+            UnloadTexture(g_draw_tiles.textures[i]);
+            g_draw_tiles.loaded[i] = 0;
+        }
+    }
+    g_draw_tiles.attempted = 0;
 }

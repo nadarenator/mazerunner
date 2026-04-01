@@ -17,6 +17,7 @@ void DrawTool_FillDefault(DrawTool *dt);
 void DrawTool_Clear(DrawTool *dt);
 void DrawTool_Update(DrawTool *dt);
 void DrawTool_Render(const DrawTool *dt);
+void DrawTool_UnloadAssets(void);
 
 // Returns 1 if the "Start Game" button was clicked this frame
 int  DrawTool_StartClicked(void);

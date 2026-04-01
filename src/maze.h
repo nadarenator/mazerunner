@@ -51,3 +51,6 @@ int  Maze_TryCollectOrb(MazeBuffer *mb, int tile_x, int tile_y);
 
 // Write the world-pixel center of the spawn tile (guaranteed floor).
 void Maze_GetStartPos(const MazeBuffer *mb, float *out_x, float *out_y);
+
+// Unload any textures/assets used by maze rendering.
+void Maze_UnloadAssets(void);

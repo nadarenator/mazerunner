@@ -4,6 +4,56 @@
 #include <math.h>
 #include <stdlib.h>
 
+#define CRAFTPIX_BASE "craftpix-099511-free-race-track-2d-game-tile-set/PNG"
+
+typedef struct {
+    Texture2D textures[ROAD_TILE_COUNT];
+    unsigned char loaded[ROAD_TILE_COUNT];
+    int attempted;
+} MazeTileAssets;
+
+static MazeTileAssets g_tiles;
+
+static void try_load_tile(uint8_t tile_type, const char *path) {
+    if (!FileExists(path)) return;
+    Texture2D tex = LoadTexture(path);
+    if (tex.id > 0) {
+        g_tiles.textures[tile_type] = tex;
+        g_tiles.loaded[tile_type] = 1;
+    }
+}
+
+static void ensure_tiles_loaded(void) {
+    if (g_tiles.attempted) return;
+    g_tiles.attempted = 1;
+
+    try_load_tile(ROAD_TILE_NONE,       CRAFTPIX_BASE "/Background_Tiles/Grass_Tile.png");
+    try_load_tile(ROAD_TILE_FULL,       CRAFTPIX_BASE "/Road_01/Road_01_Tile_05/Road_01_Tile_05.png");
+    try_load_tile(ROAD_TILE_STRAIGHT_H, CRAFTPIX_BASE "/Road_01/Road_01_Tile_01/Road_01_Tile_01.png");
+    try_load_tile(ROAD_TILE_STRAIGHT_V, CRAFTPIX_BASE "/Road_01/Road_01_Tile_02/Road_01_Tile_02.png");
+    try_load_tile(ROAD_TILE_TURN_NE,    CRAFTPIX_BASE "/Road_01/Road_01_Tile_03/Road_01_Tile_03.png");
+    try_load_tile(ROAD_TILE_TURN_NW,    CRAFTPIX_BASE "/Road_01/Road_01_Tile_04/Road_01_Tile_04.png");
+    try_load_tile(ROAD_TILE_TURN_SE,    CRAFTPIX_BASE "/Road_01/Road_01_Tile_06/Road_01_Tile_06.png");
+    try_load_tile(ROAD_TILE_TURN_SW,    CRAFTPIX_BASE "/Road_01/Road_01_Tile_07/Road_01_Tile_07.png");
+    try_load_tile(ROAD_TILE_T_N,        CRAFTPIX_BASE "/Road_01/Road_01_Tile_08/Road_01_Tile_08.png");
+    try_load_tile(ROAD_TILE_T_E,        CRAFTPIX_BASE "/Road_02/Road_02_Tile_01/Road_02_Tile_01.png");
+    try_load_tile(ROAD_TILE_T_S,        CRAFTPIX_BASE "/Road_02/Road_02_Tile_02/Road_02_Tile_02.png");
+    try_load_tile(ROAD_TILE_T_W,        CRAFTPIX_BASE "/Road_02/Road_02_Tile_03/Road_02_Tile_03.png");
+    try_load_tile(ROAD_TILE_CROSS,      CRAFTPIX_BASE "/Road_02/Road_02_Tile_04/Road_02_Tile_04.png");
+}
+
+static int draw_textured_tile_if_available(int x, int y, int size, uint8_t tile_type) {
+    ensure_tiles_loaded();
+    if (!RoadTile_IsValid(tile_type)) return 0;
+    if (!g_tiles.loaded[tile_type]) return 0;
+
+    Texture2D tex = g_tiles.textures[tile_type];
+    Rectangle src = { 0.0f, 0.0f, (float)tex.width, (float)tex.height };
+    Rectangle dst = { (float)x, (float)y, (float)size, (float)size };
+    DrawTexturePro(tex, src, dst, (Vector2){0.0f, 0.0f}, 0.0f, WHITE);
+    return 1;
+}
+
 // ---- Internal: set one cell from a pattern index ----
 
 static void set_cell(MazeBuffer *mb, int r, int c, int pat) {
@@ -16,6 +66,11 @@ static void set_cell(MazeBuffer *mb, int r, int c, int pat) {
 }
 
 static void draw_road_tile_world(int x, int y, int size, uint8_t tile_type) {
+    if (draw_textured_tile_if_available(x, y, size, tile_type)) {
+        DrawRectangleLinesEx((Rectangle){(float)x, (float)y, (float)size, (float)size}, 1.0f, (Color){24, 24, 24, 255});
+        return;
+    }
+
     Color grass = (Color){30, 110, 40, 255};
     Color road = (Color){52, 52, 52, 255};
     Color edge = (Color){24, 24, 24, 255};
@@ -237,4 +292,14 @@ void Maze_GetStartPos(const MazeBuffer *mb, float *out_x, float *out_y) {
     int cr = mb->origin_y + BUF_H / 2;
     *out_x = (float)cc * TILE_SIZE + TILE_SIZE / 2.0f;
     *out_y = (float)cr * TILE_SIZE + TILE_SIZE / 2.0f;
+}
+
+void Maze_UnloadAssets(void) {
+    for (int i = 0; i < ROAD_TILE_COUNT; i++) {
+        if (g_tiles.loaded[i]) {
+            UnloadTexture(g_tiles.textures[i]);
+            g_tiles.loaded[i] = 0;
+        }
+    }
+    g_tiles.attempted = 0;
 }

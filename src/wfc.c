@@ -1,4 +1,5 @@
 #include "wfc.h"
+#include "road_tiles.h"
 #include <string.h>
 #include <stdlib.h>
 
@@ -24,15 +25,37 @@ static int compatible_down(const WFCPattern *p1, const WFCPattern *p2) {
     return 1;
 }
 
+static int compatible_connectors(const WFCPattern *p1, const WFCPattern *p2, int dir) {
+    uint8_t c1 = p1->data[WFC_N / 2][WFC_N / 2];
+    uint8_t c2 = p2->data[WFC_N / 2][WFC_N / 2];
+
+    uint8_t m1 = RoadTile_ConnMask(c1);
+    uint8_t m2 = RoadTile_ConnMask(c2);
+
+    if (dir == WFC_DIR_RIGHT) {
+        int open1 = (m1 & ROAD_CONN_E) != 0;
+        int open2 = (m2 & ROAD_CONN_W) != 0;
+        return open1 == open2;
+    }
+    if (dir == WFC_DIR_DOWN) {
+        int open1 = (m1 & ROAD_CONN_S) != 0;
+        int open2 = (m2 & ROAD_CONN_N) != 0;
+        return open1 == open2;
+    }
+    return 1;
+}
+
 static void build_adjacency(WFCData *wfc) {
     memset(wfc->adj, 0, sizeof(wfc->adj));
     for (int p1 = 0; p1 < wfc->pattern_count; p1++) {
         for (int p2 = 0; p2 < wfc->pattern_count; p2++) {
-            if (compatible_right(&wfc->patterns[p1], &wfc->patterns[p2])) {
+            if (compatible_right(&wfc->patterns[p1], &wfc->patterns[p2]) &&
+                (!wfc->use_conn_rules || compatible_connectors(&wfc->patterns[p1], &wfc->patterns[p2], WFC_DIR_RIGHT))) {
                 wfc->adj[p1][WFC_DIR_RIGHT][p2 / 8] |= (uint8_t)(1 << (p2 % 8));
                 wfc->adj[p2][WFC_DIR_LEFT ][p1 / 8] |= (uint8_t)(1 << (p1 % 8));
             }
-            if (compatible_down(&wfc->patterns[p1], &wfc->patterns[p2])) {
+            if (compatible_down(&wfc->patterns[p1], &wfc->patterns[p2]) &&
+                (!wfc->use_conn_rules || compatible_connectors(&wfc->patterns[p1], &wfc->patterns[p2], WFC_DIR_DOWN))) {
                 wfc->adj[p1][WFC_DIR_DOWN][p2 / 8] |= (uint8_t)(1 << (p2 % 8));
                 wfc->adj[p2][WFC_DIR_UP  ][p1 / 8] |= (uint8_t)(1 << (p1 % 8));
             }
@@ -74,6 +97,15 @@ static int first_valid(const WFCData *wfc, const uint8_t *bits) {
 
 void WFC_Init(WFCData *wfc, const uint8_t *sample, int sample_w, int sample_h) {
     wfc->pattern_count = 0;
+    wfc->use_conn_rules = 0;
+
+    for (int i = 0; i < sample_w * sample_h; i++) {
+        if (sample[i] >= ROAD_TILE_STRAIGHT_H && sample[i] < ROAD_TILE_COUNT) {
+            wfc->use_conn_rules = 1;
+            break;
+        }
+    }
+
     for (int y = 0; y < sample_h; y++) {
         for (int x = 0; x < sample_w; x++) {
             WFCPattern pat;

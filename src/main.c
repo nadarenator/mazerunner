@@ -23,12 +23,6 @@ static void TransitionToPlay(void) {
     // Build WFC from whatever the user drew
     WFC_Init(&g_wfc, &g_draw.pixels[0][0], CANVAS_SIZE, CANVAS_SIZE);
 
-    // Guard: if the drawing is blank or all-wall, fill a minimal default
-    if (!WFC_HasRoadPattern(&g_wfc)) {
-        DrawTool_FillDefault(&g_draw);
-        WFC_Init(&g_wfc, &g_draw.pixels[0][0], CANVAS_SIZE, CANVAS_SIZE);
-    }
-
     // Init maze centered on player spawn (world origin)
     float sx = 0.0f, sy = 0.0f;
     Maze_Init(&g_maze, &g_wfc, sx, sy);
@@ -102,6 +96,8 @@ int main(void) {
 #else
     while (!WindowShouldClose())
         UpdateDrawFrame();
+    DrawTool_UnloadAssets();
+    Maze_UnloadAssets();
     CloseWindow();
 #endif
 

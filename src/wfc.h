@@ -17,6 +17,7 @@ typedef struct {
 
 typedef struct {
     int        pattern_count;
+    int        use_conn_rules; // 1 when sample uses explicit ROAD_TILE_* ids (>=2)
     WFCPattern patterns[WFC_MAX_PAT];
     // adj[p1][dir][p2/8] bit(p2%8) = 1  →  p2 is valid in `dir` from p1
     uint8_t    adj[WFC_MAX_PAT][4][WFC_MAX_PAT / 8];
