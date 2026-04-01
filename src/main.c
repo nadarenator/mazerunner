@@ -86,6 +86,7 @@ int main(void) {
     srand((unsigned)time(NULL));
 
     InitWindow(SCREEN_W, SCREEN_H, "MazeRunner");
+    SetExitKey(KEY_NULL);
     SetTargetFPS(60);
 
     g_state = STATE_DRAW;
